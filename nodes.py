@@ -1,7 +1,7 @@
 """Quick Latent node - ComfyUI custom node for preset-based latent image generation.
 
 Provides a resolution lookup table, dimension calculator, and QuickLatent node class
-for ComfyUI latent generation. All dimensions are rounded to the nearest multiple of 64
+for ComfyUI latent generation. All dimensions are rounded to the nearest multiple of 16
 for clean latent alignment.
 """
 
@@ -35,19 +35,21 @@ RESOLUTION_TABLE = {
     },
 }
 
+DIMENSION_ALIGNMENT = 16
 
-def round_to_64(value):
-    """Round a numeric value to the nearest multiple of 64.
+
+def round_to_alignment(value):
+    """Round a numeric value to the nearest configured dimension alignment.
 
     Uses Python's built-in round() which implements banker's rounding
     (round half to even) for exact .5 cases.
 
     Examples:
-        round_to_64(540)  -> 512  (540/64 = 8.4375, rounds to 8)
-        round_to_64(960)  -> 960  (already a multiple of 64)
-        round_to_64(1080) -> 1088 (1080/64 = 16.875, rounds to 17)
+        round_to_alignment(540)  -> 544  (540/16 = 33.75, rounds to 34)
+        round_to_alignment(960)  -> 960  (already a multiple of 16)
+        round_to_alignment(1080) -> 1088 (1080/16 = 67.5, rounds to 68)
     """
-    return round(value / 64) * 64
+    return round(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
 
 
 def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
@@ -60,13 +62,13 @@ def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
         scale_factor: Division factor (1.0 to 2.0)
 
     Returns:
-        Tuple of (width, height) as integers, both divisible by 64.
+        Tuple of (width, height) as integers, both divisible by 16.
 
     Algorithm:
         1. Look up (w, h) from RESOLUTION_TABLE
         2. If Portrait: swap to (h, w)
         3. Divide both by scale_factor
-        4. Apply round_to_64 to both
+        4. Apply round_to_alignment to both
         5. Return as integer tuple
     """
     w, h = RESOLUTION_TABLE[resolution][aspect_ratio]
@@ -81,8 +83,8 @@ def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
     w = w / scale_factor
     h = h / scale_factor
 
-    w = round_to_64(w)
-    h = round_to_64(h)
+    w = round_to_alignment(w)
+    h = round_to_alignment(h)
 
     return (int(w), int(h))
 
