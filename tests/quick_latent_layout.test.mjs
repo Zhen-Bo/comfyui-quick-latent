@@ -95,10 +95,21 @@ test("target preview is derived from aligned sampler size times scale", () => {
     );
 });
 
-test("frontend alignment matches Python half-even rounding at midpoint", () => {
+test("frontend alignment rounds up to the next 8-pixel boundary", () => {
     assert.deepEqual(
         calculateDimensions("4K", "1:1", "Landscape", 1.2),
-        { width: 1792, height: 1792 },
+        { width: 1800, height: 1800 },
+    );
+});
+
+test("target preview does not undershoot the selected preset target", () => {
+    assert.deepEqual(
+        calculateDimensions("1K", "1:1", "Landscape", 1.1),
+        { width: 936, height: 936 },
+    );
+    assert.deepEqual(
+        getTargetDimensions("1K", "1:1", "Landscape", 1.1),
+        { width: 1030, height: 1030 },
     );
 });
 
