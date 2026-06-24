@@ -1,0 +1,6 @@
+run_at=2026-06-25T00:00:40
+comfy_api=http://127.0.0.1:8188
+total_cases=330
+failures=0
+rounded_cases=258
+elapsed_seconds=88.1
