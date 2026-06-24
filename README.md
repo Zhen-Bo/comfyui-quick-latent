@@ -20,7 +20,7 @@ Quick Latent lets you choose a resolution tier, aspect ratio, orientation, scale
 | Resolution presets | Choose from 1K, 2K, and 4K target sizes. |
 | Aspect ratios | Supports 1:1, 2:3, 3:4, 16:9, and 21:9. |
 | Orientation | Switch between landscape and portrait layouts. |
-| Scale factor | Generate latent dimensions from 1.0x to 2.0x downscale factors. |
+| Scale factor | Generate 8-aligned latent dimensions from 1.0x to 2.0x downscale factors, rounded up. |
 | Batch size | Create latent batches from 1 to 64. |
 | Custom UI | Uses a compact canvas UI inside the ComfyUI node. |
 | Outputs | Returns width, height, scale, latent, and batch size. |
@@ -56,14 +56,16 @@ Use the node controls to select:
 - Scale factor
 - Batch size
 
-The node returns a zero-filled latent tensor and the matching dimension values for downstream ComfyUI workflows.
+The node returns a zero-filled latent tensor and the matching dimension values for downstream ComfyUI workflows. Output width and height are the actual aligned sampler dimensions. The UI target size is calculated from those aligned dimensions multiplied by the selected scale factor.
+
+For the exact size formula, rounding behavior, and readable per-combination tables, see [Dimension Tables](docs/dimension-tables.md).
 
 ## Outputs
 
 | Output | Type | Description |
 | --- | --- | --- |
-| `OUTPUT_WIDTH` | `INT` | Computed latent image width. |
-| `OUTPUT_HEIGHT` | `INT` | Computed latent image height. |
+| `OUTPUT_WIDTH` | `INT` | Actual 8-aligned latent image width. |
+| `OUTPUT_HEIGHT` | `INT` | Actual 8-aligned latent image height. |
 | `SCALE` | `FLOAT` | Selected scale factor. |
 | `LATENT` | `LATENT` | Zero-filled latent tensor. |
 | `BATCH_SIZE` | `INT` | Selected batch size. |

@@ -69,7 +69,7 @@ function setupQuickLatentNode(node) {
     function recalculate() {
         const sf = Number(scaleVal) || 2.0;
         const dims = calculateDimensions(resVal, ratioVal, orientVal, sf);
-        const target = getTargetDimensions(resVal, ratioVal, orientVal);
+        const target = getTargetDimensions(resVal, ratioVal, orientVal, sf);
         ds.width = dims.width;
         ds.height = dims.height;
         ds.targetWidth = target.width;

@@ -6,7 +6,7 @@ Tests cover:
 3. Portrait with 1:1 ratio (symmetric, no visible swap)
 4. Scale factor 2.0 on several combos
 5. Scale factor 1.5 producing fractional values that must round
-6. Every output is divisible by 64 (parametric check)
+6. Every output is divisible by 8 (parametric check)
 7. QuickLatent node class: INPUT_TYPES, RETURN_TYPES, RETURN_NAMES, FUNCTION, CATEGORY
 8. QuickLatent.generate method: output format, batch_size clamping, tensor shape
 """
@@ -18,7 +18,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from nodes import RESOLUTION_TABLE, round_to_64, calculate_dimensions, QuickLatent
+from nodes import RESOLUTION_TABLE, round_to_alignment, calculate_dimensions, QuickLatent
 
 
 # ===========================================================================
@@ -35,10 +35,10 @@ class TestResolutionTableLandscape:
         assert calculate_dimensions("1K", "2:3", "Landscape", 1.0) == (1920, 1280)
 
     def test_1k_3_4(self):
-        assert calculate_dimensions("1K", "3:4", "Landscape", 1.0) == (1920, 1408)
+        assert calculate_dimensions("1K", "3:4", "Landscape", 1.0) == (1920, 1440)
 
     def test_1k_16_9(self):
-        assert calculate_dimensions("1K", "16:9", "Landscape", 1.0) == (1920, 1088)
+        assert calculate_dimensions("1K", "16:9", "Landscape", 1.0) == (1920, 1080)
 
     def test_1k_21_9(self):
         assert calculate_dimensions("1K", "21:9", "Landscape", 1.0) == (2560, 1088)
@@ -47,19 +47,19 @@ class TestResolutionTableLandscape:
         assert calculate_dimensions("2K", "1:1", "Landscape", 1.0) == (2048, 2048)
 
     def test_2k_2_3(self):
-        assert calculate_dimensions("2K", "2:3", "Landscape", 1.0) == (2560, 1728)
+        assert calculate_dimensions("2K", "2:3", "Landscape", 1.0) == (2560, 1712)
 
     def test_2k_3_4(self):
         assert calculate_dimensions("2K", "3:4", "Landscape", 1.0) == (2560, 1920)
 
     def test_2k_16_9(self):
-        assert calculate_dimensions("2K", "16:9", "Landscape", 1.0) == (2560, 1408)
+        assert calculate_dimensions("2K", "16:9", "Landscape", 1.0) == (2560, 1440)
 
     def test_2k_21_9(self):
-        assert calculate_dimensions("2K", "21:9", "Landscape", 1.0) == (3456, 1408)
+        assert calculate_dimensions("2K", "21:9", "Landscape", 1.0) == (3440, 1440)
 
     def test_4k_1_1(self):
-        assert calculate_dimensions("4K", "1:1", "Landscape", 1.0) == (2176, 2176)
+        assert calculate_dimensions("4K", "1:1", "Landscape", 1.0) == (2160, 2160)
 
     def test_4k_2_3(self):
         assert calculate_dimensions("4K", "2:3", "Landscape", 1.0) == (3840, 2560)
@@ -68,10 +68,10 @@ class TestResolutionTableLandscape:
         assert calculate_dimensions("4K", "3:4", "Landscape", 1.0) == (3840, 2880)
 
     def test_4k_16_9(self):
-        assert calculate_dimensions("4K", "16:9", "Landscape", 1.0) == (3840, 2176)
+        assert calculate_dimensions("4K", "16:9", "Landscape", 1.0) == (3840, 2160)
 
     def test_4k_21_9(self):
-        assert calculate_dimensions("4K", "21:9", "Landscape", 1.0) == (5120, 2176)
+        assert calculate_dimensions("4K", "21:9", "Landscape", 1.0) == (5120, 2160)
 
 
 # ===========================================================================
@@ -85,19 +85,19 @@ class TestPortraitSwap:
         assert calculate_dimensions("1K", "2:3", "Portrait", 1.0) == (1280, 1920)
 
     def test_1k_3_4_portrait(self):
-        assert calculate_dimensions("1K", "3:4", "Portrait", 1.0) == (1408, 1920)
+        assert calculate_dimensions("1K", "3:4", "Portrait", 1.0) == (1440, 1920)
 
     def test_1k_16_9_portrait(self):
-        assert calculate_dimensions("1K", "16:9", "Portrait", 1.0) == (1088, 1920)
+        assert calculate_dimensions("1K", "16:9", "Portrait", 1.0) == (1080, 1920)
 
     def test_1k_21_9_portrait(self):
         assert calculate_dimensions("1K", "21:9", "Portrait", 1.0) == (1088, 2560)
 
     def test_2k_16_9_portrait(self):
-        assert calculate_dimensions("2K", "16:9", "Portrait", 1.0) == (1408, 2560)
+        assert calculate_dimensions("2K", "16:9", "Portrait", 1.0) == (1440, 2560)
 
     def test_4k_16_9_portrait(self):
-        assert calculate_dimensions("4K", "16:9", "Portrait", 1.0) == (2176, 3840)
+        assert calculate_dimensions("4K", "16:9", "Portrait", 1.0) == (2160, 3840)
 
 
 # ===========================================================================
@@ -114,7 +114,7 @@ class TestPortraitSquare:
         assert calculate_dimensions("2K", "1:1", "Portrait", 1.0) == (2048, 2048)
 
     def test_4k_1_1_portrait(self):
-        assert calculate_dimensions("4K", "1:1", "Portrait", 1.0) == (2176, 2176)
+        assert calculate_dimensions("4K", "1:1", "Portrait", 1.0) == (2160, 2160)
 
 
 # ===========================================================================
@@ -122,31 +122,37 @@ class TestPortraitSquare:
 # ===========================================================================
 
 class TestScaleFactor2:
-    """Scale factor 2.0 divides dimensions by 2 before rounding to 64."""
+    """Scale factor 2.0 divides dimensions by 2 before rounding up to 8."""
 
     def test_1k_16_9_landscape_scale2(self):
-        # (1920, 1080) / 2 = (960, 540) -> round_to_64 -> (960, 512)
-        assert calculate_dimensions("1K", "16:9", "Landscape", 2.0) == (960, 512)
+        # (1920, 1080) / 2 = (960, 540) -> round_to_alignment -> (960, 544)
+        assert calculate_dimensions("1K", "16:9", "Landscape", 2.0) == (960, 544)
 
     def test_1k_16_9_portrait_scale2(self):
-        # Portrait: (1080, 1920) / 2 = (540, 960) -> round_to_64 -> (512, 960)
-        assert calculate_dimensions("1K", "16:9", "Portrait", 2.0) == (512, 960)
+        # Portrait: (1080, 1920) / 2 = (540, 960) -> round_to_alignment -> (544, 960)
+        assert calculate_dimensions("1K", "16:9", "Portrait", 2.0) == (544, 960)
 
     def test_1k_1_1_landscape_scale2(self):
-        # (1024, 1024) / 2 = (512, 512) -> round_to_64 -> (512, 512)
+        # (1024, 1024) / 2 = (512, 512) -> round_to_alignment -> (512, 512)
         assert calculate_dimensions("1K", "1:1", "Landscape", 2.0) == (512, 512)
 
     def test_2k_1_1_landscape_scale2(self):
-        # (2048, 2048) / 2 = (1024, 1024) -> round_to_64 -> (1024, 1024)
+        # (2048, 2048) / 2 = (1024, 1024) -> round_to_alignment -> (1024, 1024)
         assert calculate_dimensions("2K", "1:1", "Landscape", 2.0) == (1024, 1024)
 
     def test_4k_16_9_landscape_scale2(self):
-        # (3840, 2160) / 2 = (1920, 1080) -> round_to_64 -> (1920, 1088)
-        assert calculate_dimensions("4K", "16:9", "Landscape", 2.0) == (1920, 1088)
+        # (3840, 2160) / 2 = (1920, 1080) -> round_to_alignment -> (1920, 1080)
+        assert calculate_dimensions("4K", "16:9", "Landscape", 2.0) == (1920, 1080)
+
+    def test_4k_3_4_portrait_scale2_keeps_exact_2x_target(self):
+        assert calculate_dimensions("4K", "3:4", "Portrait", 2.0) == (1440, 1920)
 
     def test_2k_2_3_landscape_scale2(self):
-        # Landscape enforces W >= H: (2560, 1712) / 2 = (1280, 856) -> round_to_64 -> (1280, 832)
-        assert calculate_dimensions("2K", "2:3", "Landscape", 2.0) == (1280, 832)
+        # Landscape enforces W >= H: (2560, 1712) / 2 = (1280, 856) -> round_to_alignment -> (1280, 856)
+        assert calculate_dimensions("2K", "2:3", "Landscape", 2.0) == (1280, 856)
+
+    def test_1k_1_1_landscape_scale1_1_rounds_up_to_preserve_target(self):
+        assert calculate_dimensions("1K", "1:1", "Landscape", 1.1) == (936, 936)
 
 
 # ===========================================================================
@@ -154,27 +160,27 @@ class TestScaleFactor2:
 # ===========================================================================
 
 class TestScaleFactor1_5:
-    """Scale factor 1.5 produces fractional values requiring round_to_64."""
+    """Scale factor 1.5 produces fractional values requiring round-up alignment."""
 
     def test_2k_21_9_landscape_scale1_5(self):
-        # (3440, 1440) / 1.5 = (2293.33, 960) -> round_to_64 -> (2304, 960)
-        assert calculate_dimensions("2K", "21:9", "Landscape", 1.5) == (2304, 960)
+        # (3440, 1440) / 1.5 = (2293.33, 960) -> round_to_alignment -> (2296, 960)
+        assert calculate_dimensions("2K", "21:9", "Landscape", 1.5) == (2296, 960)
 
     def test_1k_2_3_landscape_scale1_5(self):
-        # Landscape enforces W >= H: (1920, 1280) / 1.5 = (1280, 853.33) -> round_to_64 -> (1280, 832)
-        assert calculate_dimensions("1K", "2:3", "Landscape", 1.5) == (1280, 832)
+        # Landscape enforces W >= H: (1920, 1280) / 1.5 = (1280, 853.33) -> round_to_alignment -> (1280, 856)
+        assert calculate_dimensions("1K", "2:3", "Landscape", 1.5) == (1280, 856)
 
     def test_1k_3_4_portrait_scale1_5(self):
-        # Portrait keeps H >= W: (1440, 1920) / 1.5 = (960, 1280) -> round_to_64 -> (960, 1280)
+        # Portrait keeps H >= W: (1440, 1920) / 1.5 = (960, 1280) -> round_to_alignment -> (960, 1280)
         assert calculate_dimensions("1K", "3:4", "Portrait", 1.5) == (960, 1280)
 
     def test_4k_1_1_landscape_scale1_5(self):
-        # (2160, 2160) / 1.5 = (1440, 1440) -> round_to_64 -> (1408, 1408)
-        assert calculate_dimensions("4K", "1:1", "Landscape", 1.5) == (1408, 1408)
+        # (2160, 2160) / 1.5 = (1440, 1440) -> round_to_alignment -> (1440, 1440)
+        assert calculate_dimensions("4K", "1:1", "Landscape", 1.5) == (1440, 1440)
 
 
 # ===========================================================================
-# Test 6: Every output is divisible by 64 (parametric check)
+# Test 6: Every output is divisible by 8 (parametric check)
 # ===========================================================================
 
 TIERS = ["1K", "2K", "4K"]
@@ -187,45 +193,40 @@ SCALE_FACTORS = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
 @pytest.mark.parametrize("ratio", RATIOS)
 @pytest.mark.parametrize("orientation", ORIENTATIONS)
 @pytest.mark.parametrize("scale", SCALE_FACTORS)
-def test_divisible_by_64(tier, ratio, orientation, scale):
-    """All calculated dimensions must be divisible by 64."""
+def test_divisible_by_8(tier, ratio, orientation, scale):
+    """All calculated dimensions must be divisible by 8."""
     w, h = calculate_dimensions(tier, ratio, orientation, scale)
-    assert w % 64 == 0, f"Width {w} not divisible by 64 for {tier}/{ratio}/{orientation}/{scale}"
-    assert h % 64 == 0, f"Height {h} not divisible by 64 for {tier}/{ratio}/{orientation}/{scale}"
+    assert w % 8 == 0, f"Width {w} not divisible by 8 for {tier}/{ratio}/{orientation}/{scale}"
+    assert h % 8 == 0, f"Height {h} not divisible by 8 for {tier}/{ratio}/{orientation}/{scale}"
 
 
 # ===========================================================================
-# Test round_to_64 function directly
+# Test round_to_alignment function directly
 # ===========================================================================
 
-class TestRoundTo64:
-    """Test the round_to_64 helper function."""
+class TestRoundToAlignment:
+    """Test the round_to_alignment helper function."""
 
     def test_already_multiple(self):
-        assert round_to_64(960) == 960
+        assert round_to_alignment(960) == 960
 
-    def test_rounds_down(self):
-        # 540 / 64 = 8.4375 -> rounds to 8 -> 512
-        assert round_to_64(540) == 512
+    def test_already_multiple_never_changes(self):
+        assert round_to_alignment(528) == 528
 
     def test_rounds_up(self):
-        # 1080 / 64 = 16.875 -> rounds to 17 -> 1088
-        assert round_to_64(1080) == 1088
+        assert round_to_alignment(1081) == 1088
 
     def test_zero(self):
-        assert round_to_64(0) == 0
+        assert round_to_alignment(0) == 0
 
-    def test_exact_64(self):
-        assert round_to_64(64) == 64
+    def test_exact_8(self):
+        assert round_to_alignment(8) == 8
 
     def test_just_above_midpoint(self):
-        # 96 / 64 = 1.5 -> Python rounds 1.5 to 2 (banker's rounding)
-        # But round(1.5) in Python is 2, so 2*64 = 128
-        assert round_to_64(96) == 128
+        assert round_to_alignment(9) == 16
 
     def test_large_value(self):
-        # 5120 / 64 = 80.0 -> already exact
-        assert round_to_64(5120) == 5120
+        assert round_to_alignment(5120) == 5120
 
 
 # ===========================================================================

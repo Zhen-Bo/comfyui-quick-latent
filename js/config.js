@@ -30,23 +30,25 @@ export const RATIO_LABELS = {
 };
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#66ff88", "#ff69b4", "#ff69b4"];
 export const MIN_WIDTH = 370;
+export const DIMENSION_ALIGNMENT = 8;
 
-export function roundTo64(value) {
-    return Math.round(value / 64) * 64;
+export function roundToAlignment(value) {
+    return Math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
 }
 
 export function calculateDimensions(resolution, aspectRatio, orientation, scaleFactor) {
     let [w, h] = RESOLUTION_TABLE[resolution][aspectRatio];
     if (orientation === "Landscape") { if (w < h) [w, h] = [h, w]; }
     else if (orientation === "Portrait") { if (h < w) [w, h] = [h, w]; }
-    return { width: roundTo64(w / scaleFactor), height: roundTo64(h / scaleFactor) };
+    return { width: roundToAlignment(w / scaleFactor), height: roundToAlignment(h / scaleFactor) };
 }
 
-export function getTargetDimensions(resolution, aspectRatio, orientation) {
-    let [w, h] = RESOLUTION_TABLE[resolution][aspectRatio];
-    if (orientation === "Landscape") { if (w < h) [w, h] = [h, w]; }
-    else if (orientation === "Portrait") { if (h < w) [w, h] = [h, w]; }
-    return { width: roundTo64(w), height: roundTo64(h) };
+export function getTargetDimensions(resolution, aspectRatio, orientation, scaleFactor) {
+    const dims = calculateDimensions(resolution, aspectRatio, orientation, scaleFactor);
+    return {
+        width: Math.round(dims.width * scaleFactor),
+        height: Math.round(dims.height * scaleFactor),
+    };
 }
 
 export function buildRatioOptions(orient) {
