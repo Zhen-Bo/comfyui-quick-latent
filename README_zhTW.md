@@ -20,7 +20,7 @@ Quick Latent 可以選擇解析度等級、長寬比、方向、縮放倍率和�
 | 解析度預設 | 可選擇 1K、2K、4K 目標尺寸。 |
 | 長寬比 | 支援 1:1、2:3、3:4、16:9、21:9。 |
 | 方向 | 可切換橫向與直向。 |
-| 縮放倍率 | 以 1.0x 到 2.0x 的 downscale factor 產生 16 對齊的 latent 尺寸。 |
+| 縮放倍率 | 以 1.0x 到 2.0x 的 downscale factor 產生 8 對齊並向上取整的 latent 尺寸。 |
 | 批次大小 | 可建立 1 到 64 張的 latent batch。 |
 | 自訂介面 | 在 ComfyUI 節點內使用精簡的 canvas UI。 |
 | 輸出 | 回傳寬度、高度、縮放倍率、latent 和批次大小。 |
@@ -64,8 +64,8 @@ git clone https://github.com/Zhen-Bo/comfyui-quick-latent.git
 
 | 輸出 | 型別 | 說明 |
 | --- | --- | --- |
-| `OUTPUT_WIDTH` | `INT` | 實際 16 對齊後的 latent image 寬度。 |
-| `OUTPUT_HEIGHT` | `INT` | 實際 16 對齊後的 latent image 高度。 |
+| `OUTPUT_WIDTH` | `INT` | 實際 8 對齊後的 latent image 寬度。 |
+| `OUTPUT_HEIGHT` | `INT` | 實際 8 對齊後的 latent image 高度。 |
 | `SCALE` | `FLOAT` | 選擇的縮放倍率。 |
 | `LATENT` | `LATENT` | Zero-filled latent tensor。 |
 | `BATCH_SIZE` | `INT` | 選擇的批次大小。 |
