@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { MIN_WIDTH, buildRatioOptions } from "../js/config.js";
+import { MIN_WIDTH, buildRatioOptions, calculateDimensions, getTargetDimensions } from "../js/config.js";
 import {
     getDefaultOutputSlotLocalPosition,
     getControlStartY,
@@ -74,6 +74,31 @@ test("aspect ratio labels reflect the effective orientation", () => {
     assert.deepEqual(
         buildRatioOptions("Portrait").map((option) => option.label),
         ["1:1", "2:3", "3:4", "9:16", "9:21"],
+    );
+});
+
+test("4K 3:4 portrait at 2x previews the exact aligned sampler size", () => {
+    assert.deepEqual(
+        calculateDimensions("4K", "3:4", "Portrait", 2.0),
+        { width: 1440, height: 1920 },
+    );
+});
+
+test("target preview is derived from aligned sampler size times scale", () => {
+    assert.deepEqual(
+        calculateDimensions("4K", "1:1", "Landscape", 1.5),
+        { width: 1440, height: 1440 },
+    );
+    assert.deepEqual(
+        getTargetDimensions("4K", "1:1", "Landscape", 1.5),
+        { width: 2160, height: 2160 },
+    );
+});
+
+test("frontend alignment matches Python half-even rounding at midpoint", () => {
+    assert.deepEqual(
+        calculateDimensions("4K", "1:1", "Landscape", 1.2),
+        { width: 1792, height: 1792 },
     );
 });
 
