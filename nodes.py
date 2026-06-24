@@ -1,10 +1,11 @@
 """Quick Latent node - ComfyUI custom node for preset-based latent image generation.
 
 Provides a resolution lookup table, dimension calculator, and QuickLatent node class
-for ComfyUI latent generation. All dimensions are rounded to the nearest multiple of 16
+for ComfyUI latent generation. All dimensions are rounded up to the nearest multiple of 8
 for clean latent alignment.
 """
 
+import math
 import torch
 import comfy.model_management
 
@@ -35,21 +36,18 @@ RESOLUTION_TABLE = {
     },
 }
 
-DIMENSION_ALIGNMENT = 16
+DIMENSION_ALIGNMENT = 8
 
 
 def round_to_alignment(value):
-    """Round a numeric value to the nearest configured dimension alignment.
-
-    Uses Python's built-in round() which implements banker's rounding
-    (round half to even) for exact .5 cases.
+    """Round a numeric value up to the configured dimension alignment.
 
     Examples:
-        round_to_alignment(540)  -> 544  (540/16 = 33.75, rounds to 34)
-        round_to_alignment(960)  -> 960  (already a multiple of 16)
-        round_to_alignment(1080) -> 1088 (1080/16 = 67.5, rounds to 68)
+        round_to_alignment(540)  -> 544  (ceil(540/8) = 68)
+        round_to_alignment(960)  -> 960  (already a multiple of 8)
+        round_to_alignment(1080) -> 1080 (already a multiple of 8)
     """
-    return round(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
+    return math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
 
 
 def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
@@ -62,7 +60,7 @@ def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
         scale_factor: Division factor (1.0 to 2.0)
 
     Returns:
-        Tuple of (width, height) as integers, both divisible by 16.
+        Tuple of (width, height) as integers, both divisible by 8.
 
     Algorithm:
         1. Look up (w, h) from RESOLUTION_TABLE

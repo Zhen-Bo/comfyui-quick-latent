@@ -30,21 +30,10 @@ export const RATIO_LABELS = {
 };
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#66ff88", "#ff69b4", "#ff69b4"];
 export const MIN_WIDTH = 370;
-export const DIMENSION_ALIGNMENT = 16;
-
-function roundHalfEven(value) {
-    const floor = Math.floor(value);
-    const fraction = value - floor;
-    const epsilon = Number.EPSILON * Math.max(1, Math.abs(value)) * 4;
-
-    if (Math.abs(fraction - 0.5) <= epsilon) {
-        return floor % 2 === 0 ? floor : floor + 1;
-    }
-    return Math.round(value);
-}
+export const DIMENSION_ALIGNMENT = 8;
 
 export function roundToAlignment(value) {
-    return roundHalfEven(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
+    return Math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
 }
 
 export function calculateDimensions(resolution, aspectRatio, orientation, scaleFactor) {
