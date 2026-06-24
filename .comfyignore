@@ -1,0 +1,13 @@
+.git/
+.github/
+.claude/
+.planning/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+tests/
+conftest.py
+pytest.ini
+package.json
+first-idea.png

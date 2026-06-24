@@ -1,0 +1,12 @@
+[project]
+name = "comfyui-quick-latent"
+version = "1.0.0"
+description = "A streamlined latent size node for ComfyUI with resolution presets, scale control, and batch output."
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/Zhen-Bo/comfyui-quick-latent"
+
+[tool.comfy]
+PublisherId = "kevinsun"
+DisplayName = "ComfyUI-Quick-Latent"

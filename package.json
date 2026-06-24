@@ -1,0 +1,8 @@
+{
+  "name": "comfyui-quick-latent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/quick_latent_layout.test.mjs"
+  }
+}
