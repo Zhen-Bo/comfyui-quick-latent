@@ -93,16 +93,19 @@ def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
     return (int(w), int(h))
 
 
-def calculate_custom_dimensions(custom_width, custom_height, scale_factor):
+def calculate_custom_dimensions(custom_width, custom_height):
     """Calculate latent-aligned dimensions from a user-supplied custom size.
 
-    Custom width/height are TARGET (final) sizes, consistent with the 1K/2K/4K
-    presets (D-01): the latent output for each axis is round8(custom / scale_factor).
+    Custom width/height are the RAW OUTPUT (latent) size the user wants — the
+    node emits exactly these dimensions, 8-aligned (D-01, revised 2026-07-04
+    after Phase 5 UAT). scale_factor does NOT divide here; it is display-only
+    (the UI shows Target = output x scale_factor). This is intentionally
+    different from the preset path, where the table value is a target that
+    scale divides.
 
     Args:
-        custom_width: User-entered target width (integer from the INT widget)
-        custom_height: User-entered target height (integer from the INT widget)
-        scale_factor: Division factor (1.0 to 2.0)
+        custom_width: User-entered output/latent width (integer from the INT widget)
+        custom_height: User-entered output/latent height (integer from the INT widget)
 
     Returns:
         Tuple of (width, height) as integers, both divisible by 8.
@@ -111,8 +114,8 @@ def calculate_custom_dimensions(custom_width, custom_height, scale_factor):
         1. Clamp each axis to [CUSTOM_DIMENSION_MIN, CUSTOM_DIMENSION_MAX] so
            below-min / blank / 0 becomes the min and above-max becomes the max
            (never raises).
-        2. Divide each by scale_factor.
-        3. Apply round_to_alignment (ceil-to-8) to each.
+        2. Apply round_to_alignment (ceil-to-8) to each. No scale division —
+           the entered size IS the output latent size.
 
     Unlike calculate_dimensions this takes NO orientation argument and does NOT
     swap width/height: the frontend owns the Portrait/Landscape swap (Phase 5),
@@ -121,10 +124,7 @@ def calculate_custom_dimensions(custom_width, custom_height, scale_factor):
     w = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_width))
     h = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_height))
 
-    w = round_to_alignment(w / scale_factor)
-    h = round_to_alignment(h / scale_factor)
-
-    return (int(w), int(h))
+    return (round_to_alignment(w), round_to_alignment(h))
 
 
 class QuickLatent:
@@ -184,7 +184,7 @@ class QuickLatent:
         # literally (no orientation swap, D-06); every preset value keeps the
         # existing table-based path unchanged.
         if resolution == "Custom":
-            width, height = calculate_custom_dimensions(custom_width, custom_height, scale_factor)
+            width, height = calculate_custom_dimensions(custom_width, custom_height)
         else:
             width, height = calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor)
 

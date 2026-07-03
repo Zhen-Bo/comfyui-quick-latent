@@ -79,7 +79,7 @@ function setupQuickLatentNode(node) {
         const sf = Number(scaleVal) || 2.0;
         let dims, target;
         if (resVal === "Custom") {
-            dims = calculateCustomDimensions(customWidthVal, customHeightVal, sf);
+            dims = calculateCustomDimensions(customWidthVal, customHeightVal);
             target = getCustomTargetDimensions(customWidthVal, customHeightVal, sf);
         } else {
             dims = calculateDimensions(resVal, ratioVal, orientVal, sf);

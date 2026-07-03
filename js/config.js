@@ -57,23 +57,23 @@ export function getTargetDimensions(resolution, aspectRatio, orientation, scaleF
     };
 }
 
-// Client mirror of nodes.py calculate_custom_dimensions (D-01/D-13): clamp each
-// axis to [CUSTOM_MIN, CUSTOM_MAX] then round8(value / scaleFactor). Takes NO
-// orientation argument and does NOT swap width/height — the frontend owns the
-// Portrait/Landscape swap (D-06), so swapping here would double-swap.
-export function calculateCustomDimensions(customW, customH, scaleFactor) {
+// Client mirror of nodes.py calculate_custom_dimensions (D-01/D-13, revised
+// 2026-07-04 after Phase 5 UAT): the entered width/height ARE the raw output
+// (latent) size — clamp each axis to [CUSTOM_MIN, CUSTOM_MAX] then round8(value).
+// NO scale division (scale is display-only here) and NO orientation swap (the
+// frontend owns the Portrait/Landscape swap, D-06).
+export function calculateCustomDimensions(customW, customH) {
     const clamp = (v) => Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, v));
     return {
-        width: roundToAlignment(clamp(customW) / scaleFactor),
-        height: roundToAlignment(clamp(customH) / scaleFactor),
+        width: roundToAlignment(clamp(customW)),
+        height: roundToAlignment(clamp(customH)),
     };
 }
 
-// Custom-aware target (D-09): the achievable target after 8-alignment is the
-// aligned latent size times the scale factor (may differ slightly from the
-// typed value, e.g. 1000 @ 2x -> latent 504 -> target 1008).
+// Custom-aware target (D-09, revised): the entered size IS the output latent, so
+// the Target shown to the user is output x scaleFactor (e.g. 512 @ 2x -> 1024).
 export function getCustomTargetDimensions(customW, customH, scaleFactor) {
-    const dims = calculateCustomDimensions(customW, customH, scaleFactor);
+    const dims = calculateCustomDimensions(customW, customH);
     return {
         width: Math.round(dims.width * scaleFactor),
         height: Math.round(dims.height * scaleFactor),

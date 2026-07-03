@@ -157,22 +157,22 @@ test("normalizing output slots removes stale manual positions and hides native t
 // (D-01/D-13): clamp each axis to [512, 4096] then round8(value / scale),
 // with NO orientation swap (the frontend owns the swap, D-06).
 
-test("client custom calc mirrors nodes.py: target divided by scale then rounded up to 8", () => {
-    assert.deepEqual(calculateCustomDimensions(2048, 1024, 2.0), { width: 1024, height: 512 });
-    assert.deepEqual(calculateCustomDimensions(1024, 1024, 1.0), { width: 1024, height: 1024 });
-    assert.deepEqual(calculateCustomDimensions(1920, 1080, 2.0), { width: 960, height: 544 });
+test("client custom calc mirrors nodes.py: entered size IS the output (round8, no scale divide)", () => {
+    assert.deepEqual(calculateCustomDimensions(2048, 1024), { width: 2048, height: 1024 });
+    assert.deepEqual(calculateCustomDimensions(1024, 1024), { width: 1024, height: 1024 });
+    assert.deepEqual(calculateCustomDimensions(1920, 1080), { width: 1920, height: 1080 });
 });
 
 test("client custom calc clamps each axis to [512, 4096] like the backend", () => {
-    assert.deepEqual(calculateCustomDimensions(100, 100, 1.0), { width: 512, height: 512 });
-    assert.deepEqual(calculateCustomDimensions(9000, 9000, 1.0), { width: 4096, height: 4096 });
-    assert.deepEqual(calculateCustomDimensions(513, 513, 1.0), { width: 520, height: 520 });
-    assert.deepEqual(calculateCustomDimensions(5000, 300, 2.0), { width: 2048, height: 256 });
+    assert.deepEqual(calculateCustomDimensions(100, 100), { width: 512, height: 512 });
+    assert.deepEqual(calculateCustomDimensions(9000, 9000), { width: 4096, height: 4096 });
+    assert.deepEqual(calculateCustomDimensions(513, 513), { width: 520, height: 520 });
+    assert.deepEqual(calculateCustomDimensions(5000, 300), { width: 4096, height: 512 });
 });
 
-test("custom target is the achievable size after 8-alignment (output times scale)", () => {
-    // type 1000 @ scale 2 -> latent 504 -> target 504 * 2 = 1008 (D-09)
-    assert.deepEqual(getCustomTargetDimensions(1000, 1000, 2.0), { width: 1008, height: 1008 });
+test("custom target is the entered output times scale (D-09 revised)", () => {
+    // type 512 @ scale 2 -> output 512 -> target 512 * 2 = 1024 (D-09)
+    assert.deepEqual(getCustomTargetDimensions(512, 512, 2.0), { width: 1024, height: 1024 });
 });
 
 test("size-box hit-test maps clicks to the width or height box; the central gap returns null", () => {
