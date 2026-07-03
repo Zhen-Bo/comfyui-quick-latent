@@ -33,10 +33,15 @@ export function openSizeInput({ node, box, localPos, event, value, min, max, onC
     // Coordinate transform — node-local (box.x, box.y) -> viewport client px.
     // VERIFIED against ComfyUI frontend 1.32.9 DragAndScale/adjustMouseEvent:
     // ds.scale is already CSS px per graph unit, so there is NO devicePixelRatio term.
+    // HINT_INSET (node-local px) is applied to BOTH sides so the input stays
+    // centred on the box — its centre matches the drawn value's centre, so the
+    // number does not shift when editing — while the left strip keeps the faint
+    // W/H hint (drawn by drawSize at box.x+6) visible.
+    const HINT_INSET = 19;
     const s = app.canvas.ds.scale;
     const rect = app.canvas.canvas.getBoundingClientRect();
     const [ox, oy] = app.canvas.ds.offset;
-    const left = rect.left + (node.pos[0] + box.x + ox) * s;
+    const left = rect.left + (node.pos[0] + box.x + HINT_INSET + ox) * s;
     const top = rect.top + (node.pos[1] + box.y + oy) * s;
 
     // Build the element with createElement + property/style assignment ONLY.
@@ -50,7 +55,7 @@ export function openSizeInput({ node, box, localPos, event, value, min, max, onC
         position: "fixed",
         left: `${left}px`,
         top: `${top}px`,
-        width: `${box.w * s}px`,
+        width: `${(box.w - HINT_INSET * 2) * s}px`,
         height: `${box.h * s}px`,
         fontSize: `${12 * s}px`,
         boxSizing: "border-box",
