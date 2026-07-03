@@ -61,6 +61,15 @@ export function getBatchClickAction(control, x, y) {
     return null;
 }
 
+export function getSizeBoxClickAction(controls, x, y) {
+    if (!controls) return null;
+    const inside = (box) =>
+        box && x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h;
+    if (inside(controls.sizeW)) return "sizeW";
+    if (inside(controls.sizeH)) return "sizeH";
+    return null;
+}
+
 export function normalizeOutputSlots(outputs) {
     if (!outputs) return;
 

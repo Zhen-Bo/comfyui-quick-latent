@@ -157,6 +157,58 @@ export function drawBatch(ctx, controls, name, value, y, widgetWidth) {
     controls[name] = { x: x0, y, w, h };
 }
 
+export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth) {
+    // Two equal-width boxes (W x H) with a central "×" separator (D-08).
+    // Box height is 26 — identical to drawSegmented/drawBatch — so toggling
+    // preset<->Custom causes no vertical layout shift (CUST-03).
+    const band = widgetWidth - PAD * 2;
+    const h = 26;
+    const x0 = PAD;
+    const gap = 24; // central gap holding the "×"; the registered box regions,
+    //                not this constant, are what hit-testing reads.
+    const boxW = (band - gap) / 2;
+
+    const boxes = [
+        { key: "sizeW", hint: "W", value: widthVal, x: x0 },
+        { key: "sizeH", hint: "H", value: heightVal, x: x0 + boxW + gap },
+    ];
+
+    for (const box of boxes) {
+        ctx.beginPath();
+        ctx.roundRect(box.x, y, boxW, h, 5);
+        ctx.fillStyle = "#252538";
+        ctx.fill();
+        ctx.strokeStyle = "#3a3a52";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(box.x, y, boxW, h, 5);
+        ctx.stroke();
+
+        // faint W / H hint, left-inset inside the box
+        ctx.fillStyle = "#6e6e85";
+        ctx.font = "9px sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(box.hint, box.x + 6, y + h / 2);
+
+        // current value, centered, bold monospace
+        ctx.fillStyle = "#e8e8f0";
+        ctx.font = "bold 12px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(box.value), box.x + boxW / 2, y + h / 2);
+
+        controls[box.key] = { x: box.x, y, w: boxW, h };
+    }
+
+    // central "×" glyph at the row midpoint
+    ctx.fillStyle = "#6e6e85";
+    ctx.font = "bold 14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("×", x0 + band / 2, y + h / 2);
+}
+
 export function drawTargetInfo(ctx, ds, y, widgetWidth) {
     const w = widgetWidth - PAD * 2;
     const x0 = PAD;
