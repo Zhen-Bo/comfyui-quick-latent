@@ -2,10 +2,11 @@ import { app } from "../../scripts/app.js";
 import {
     RESOLUTIONS, MIN_WIDTH,
     calculateDimensions, getTargetDimensions, buildRatioOptions,
+    calculateCustomDimensions, getCustomTargetDimensions,
 } from "./config.js";
 import {
     drawLabel, drawSegmented, drawSlider, drawToggle,
-    drawBatch, drawTargetInfo, drawOutputValues,
+    drawBatch, drawTargetInfo, drawOutputValues, drawSize,
 } from "./draw.js";
 import {
     getControlStartY,
@@ -13,8 +14,10 @@ import {
     getQuickLatentMinWidth,
     getQuickLatentMinHeight,
     getBatchClickAction,
+    getSizeBoxClickAction,
     normalizeOutputSlots,
 } from "./layout.js";
+import { openSizeInput } from "./size_input.js";
 
 app.registerExtension({
     name: "QuickLatent",
@@ -36,9 +39,11 @@ function setupQuickLatentNode(node) {
     const orientationWidget = node.widgets.find((w) => w.name === "orientation");
     const scaleFactorWidget = node.widgets.find((w) => w.name === "scale_factor");
     const batchSizeWidget = node.widgets.find((w) => w.name === "batch_size");
+    const customWidthWidget = node.widgets.find((w) => w.name === "custom_width");
+    const customHeightWidget = node.widgets.find((w) => w.name === "custom_height");
 
     // Hide all default widgets
-    [resolutionWidget, aspectRatioWidget, orientationWidget, scaleFactorWidget, batchSizeWidget].forEach((w) => {
+    [resolutionWidget, aspectRatioWidget, orientationWidget, scaleFactorWidget, batchSizeWidget, customWidthWidget, customHeightWidget].forEach((w) => {
         if (w) {
             w.hidden = true;
             w.type = "hidden";
@@ -57,6 +62,10 @@ function setupQuickLatentNode(node) {
     let resVal = resolutionWidget ? resolutionWidget.value : "1K";
     let ratioVal = aspectRatioWidget ? aspectRatioWidget.value : "1:1";
     let batchVal = Number(batchSizeWidget ? batchSizeWidget.value : 1) || 1;
+    // Custom W/H persist across preset<->Custom switches; never reset while a
+    // preset is active (D-12).
+    let customWidthVal = customWidthWidget ? Number(customWidthWidget.value) || 1024 : 1024;
+    let customHeightVal = customHeightWidget ? Number(customHeightWidget.value) || 1024 : 1024;
     const resOptions = RESOLUTIONS.map((r) => ({ label: r, value: r }));
     let ratioOptions = buildRatioOptions(orientVal);
     const ds = { width: 0, height: 0, targetWidth: 0, targetHeight: 0, scale: 2.0, batch: 1 };
@@ -68,8 +77,14 @@ function setupQuickLatentNode(node) {
 
     function recalculate() {
         const sf = Number(scaleVal) || 2.0;
-        const dims = calculateDimensions(resVal, ratioVal, orientVal, sf);
-        const target = getTargetDimensions(resVal, ratioVal, orientVal, sf);
+        let dims, target;
+        if (resVal === "Custom") {
+            dims = calculateCustomDimensions(customWidthVal, customHeightVal);
+            target = getCustomTargetDimensions(customWidthVal, customHeightVal, sf);
+        } else {
+            dims = calculateDimensions(resVal, ratioVal, orientVal, sf);
+            target = getTargetDimensions(resVal, ratioVal, orientVal, sf);
+        }
         ds.width = dims.width;
         ds.height = dims.height;
         ds.targetWidth = target.width;
@@ -85,6 +100,8 @@ function setupQuickLatentNode(node) {
         if (orientationWidget) orientationWidget.value = orientVal;
         if (scaleFactorWidget) scaleFactorWidget.value = scaleVal;
         if (batchSizeWidget) batchSizeWidget.value = batchVal;
+        if (customWidthWidget) customWidthWidget.value = customWidthVal;
+        if (customHeightWidget) customHeightWidget.value = customHeightVal;
         recalculate();
     }
 
@@ -114,9 +131,13 @@ function setupQuickLatentNode(node) {
         drawSegmented(ctx, controls, "resolution", resOptions, resVal, y, ww);
         y += 32;
 
-        drawLabel(ctx, "Aspect Ratio", y + 8, ww);
+        drawLabel(ctx, resVal === "Custom" ? "Size" : "Aspect Ratio", y + 8, ww);
         y += 18;
-        drawSegmented(ctx, controls, "ratio", ratioOptions, ratioVal, y, ww);
+        if (resVal === "Custom") {
+            drawSize(ctx, controls, customWidthVal, customHeightVal, y, ww);
+        } else {
+            drawSegmented(ctx, controls, "ratio", ratioOptions, ratioVal, y, ww);
+        }
         y += 32;
 
         drawLabel(ctx, "Batch Size", y + 8, ww);
@@ -152,6 +173,13 @@ function setupQuickLatentNode(node) {
         if (oc && y >= oc.y && y <= oc.y + oc.h) {
             orientVal = orientVal === "Landscape" ? "Portrait" : "Landscape";
             ratioOptions = buildRatioOptions(orientVal);
+            // The frontend owns the Custom W/H swap (D-06/CUST-04); the backend
+            // takes the values literally.
+            if (resVal === "Custom") {
+                const t = customWidthVal;
+                customWidthVal = customHeightVal;
+                customHeightVal = t;
+            }
             syncToHidden();
             return true;
         }
@@ -163,11 +191,34 @@ function setupQuickLatentNode(node) {
             return true;
         }
 
-        const rac = controls.ratio;
-        if (rac && y >= rac.y && y <= rac.y + rac.h) {
-            const idx = Math.floor((x - rac.x) / rac.segW);
-            if (idx >= 0 && idx < rac.count) { ratioVal = ratioOptions[idx].value; syncToHidden(); }
-            return true;
+        if (resVal !== "Custom") {
+            const rac = controls.ratio;
+            if (rac && y >= rac.y && y <= rac.y + rac.h) {
+                const idx = Math.floor((x - rac.x) / rac.segW);
+                if (idx >= 0 && idx < rac.count) { ratioVal = ratioOptions[idx].value; syncToHidden(); }
+                return true;
+            }
+        } else {
+            const sizeAction = getSizeBoxClickAction(controls, x, y);
+            if (sizeAction) {
+                const isWidth = sizeAction === "sizeW";
+                const box = isWidth ? controls.sizeW : controls.sizeH;
+                openSizeInput({
+                    node: this,
+                    box,
+                    localPos,
+                    event: e,
+                    value: isWidth ? customWidthVal : customHeightVal,
+                    min: 512,
+                    max: 4096,
+                    onCommit: (v) => {
+                        if (isWidth) customWidthVal = v;
+                        else customHeightVal = v;
+                        syncToHidden();
+                    },
+                });
+                return true;
+            }
         }
 
         const bc = controls.batch;
@@ -213,6 +264,8 @@ function setupQuickLatentNode(node) {
             if (aspectRatioWidget) ratioVal = aspectRatioWidget.value;
             if (scaleFactorWidget) scaleVal = Number(scaleFactorWidget.value) || 2.0;
             if (batchSizeWidget) batchVal = Number(batchSizeWidget.value) || 1;
+            if (customWidthWidget) customWidthVal = Number(customWidthWidget.value) || 1024;
+            if (customHeightWidget) customHeightVal = Number(customHeightWidget.value) || 1024;
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
             recalculate();

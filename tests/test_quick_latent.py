@@ -304,10 +304,10 @@ class TestQuickLatentInputTypes:
         assert "required" in result
 
     def test_resolution_combo(self):
-        """Resolution input is a combo list of ['1K', '2K', '4K']."""
+        """Resolution input is a combo list of ['1K', '2K', '4K', 'Custom']."""
         inputs = QuickLatent.INPUT_TYPES()["required"]
         assert "resolution" in inputs
-        assert inputs["resolution"] == (["1K", "2K", "4K"],)
+        assert inputs["resolution"] == (["1K", "2K", "4K", "Custom"],)
 
     def test_aspect_ratio_combo(self):
         """Aspect ratio input is a combo list."""
