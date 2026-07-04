@@ -10,9 +10,13 @@ const SELECTED_TEXT = "#ffffff";
 const OPTION_TEXT = "#918da3";
 const INPUT_FILL = "#252538";
 const INPUT_BORDER = "#4d496a";
-const CUSTOM_HINT = "Output rounds down to nearest multiple of 8";
 const CUSTOM_ROW_HEIGHT = 26;
 const CUSTOM_ROW_COUNT = 3;
+const DEFAULT_SIZE_LABELS = {
+    width: "Width",
+    height: "Height",
+    hint: "Output rounds down to nearest multiple of 8",
+};
 
 function drawSelectedPill(ctx, x, y, w, h, radius) {
     ctx.beginPath();
@@ -159,7 +163,7 @@ export function drawBatch(ctx, controls, name, value, y, widgetWidth) {
     };
 }
 
-export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth) {
+export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth, labels = DEFAULT_SIZE_LABELS) {
     const w = widgetWidth - PAD * 2;
     const x0 = PAD;
     const h = CUSTOM_ROW_HEIGHT * CUSTOM_ROW_COUNT;
@@ -179,8 +183,8 @@ export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth) {
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText("Width", leftX + 1, row1Y + CUSTOM_ROW_HEIGHT - 7);
-    ctx.fillText("Height", rightX + 1, row1Y + CUSTOM_ROW_HEIGHT - 7);
+    ctx.fillText(labels.width, leftX + 1, row1Y + CUSTOM_ROW_HEIGHT - 7);
+    ctx.fillText(labels.height, rightX + 1, row1Y + CUSTOM_ROW_HEIGHT - 7);
 
     const boxes = [
         { key: "sizeW", value: widthVal, x: leftX },
@@ -209,7 +213,7 @@ export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth) {
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(CUSTOM_HINT, leftX + 1, row3Y + CUSTOM_ROW_HEIGHT / 2);
+    ctx.fillText(labels.hint, leftX + 1, row3Y + CUSTOM_ROW_HEIGHT / 2);
 }
 
 export function drawTargetInfo(ctx, ds, y, widgetWidth) {

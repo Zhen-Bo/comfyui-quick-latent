@@ -66,9 +66,9 @@ export function calculateCustomDimensions(customWidth, customHeight) {
     };
 }
 
-export function buildRatioOptions(orientation) {
+export function buildRatioOptions(orientation, customLabel = "Custom") {
     return ASPECT_RATIOS.map((ratio) => ({
-        label: RATIO_LABELS[orientation]?.[ratio] || ratio,
+        label: ratio === "Custom" ? customLabel : RATIO_LABELS[orientation]?.[ratio] || ratio,
         value: ratio,
     }));
 }

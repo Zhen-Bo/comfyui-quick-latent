@@ -20,11 +20,8 @@ import {
     normalizeOutputSlots,
 } from "./layout.js";
 import { openNumberInput } from "./size_input.js";
+import { createTranslator } from "./i18n.js";
 
-const ORIENTATION_OPTIONS = [
-    { label: "Portrait", value: "Portrait" },
-    { label: "Landscape", value: "Landscape" },
-];
 const SELECTION_ANIMATION_MS = 170;
 
 app.registerExtension({
@@ -42,6 +39,16 @@ app.registerExtension({
 });
 
 function setupQuickLatentNode(node) {
+    const t = createTranslator();
+    const orientationOptions = [
+        { label: t("portrait"), value: "Portrait" },
+        { label: t("landscape"), value: "Landscape" },
+    ];
+    const customSizeLabels = {
+        width: t("width"),
+        height: t("height"),
+        hint: t("customRoundDownHint"),
+    };
     const presetResolutionWidget = node.widgets.find((widget) => widget.name === "preset_resolution");
     const aspectRatioWidget = node.widgets.find((widget) => widget.name === "aspect_ratio");
     const orientationWidget = node.widgets.find((widget) => widget.name === "orientation");
@@ -74,7 +81,7 @@ function setupQuickLatentNode(node) {
     let customWidthVal = validCustom(customWidthWidget?.value);
     let customHeightVal = validCustom(customHeightWidget?.value);
 
-    let ratioOptions = buildRatioOptions(orientVal);
+    let ratioOptions = buildRatioOptions(orientVal, t("custom"));
     const controls = {};
     const animations = {};
     let animationFrame = null;
@@ -175,20 +182,20 @@ function setupQuickLatentNode(node) {
         drawOutputValues(ctx, ds, this);
 
         let y = getControlStartY();
-        drawLabel(ctx, "Orientation", y + 8, width);
+        drawLabel(ctx, t("orientation"), y + 8, width);
         y += 18;
-        drawSegmented(ctx, controls, "orient", ORIENTATION_OPTIONS, orientVal, y, width, animationPosition("orient"));
+        drawSegmented(ctx, controls, "orient", orientationOptions, orientVal, y, width, animationPosition("orient"));
         y += 32;
 
-        drawLabel(ctx, "Aspect Ratio", y + 8, width);
+        drawLabel(ctx, t("aspectRatio"), y + 8, width);
         y += 18;
         drawSegmented(ctx, controls, "ratio", ratioOptions, ratioVal, y, width, animationPosition("ratio"));
         y += 32;
 
-        drawLabel(ctx, ratioVal === "Custom" ? "Custom Size" : "Preset Resolution", y + 8, width);
+        drawLabel(ctx, ratioVal === "Custom" ? t("customSize") : t("presetResolution"), y + 8, width);
         y += 18;
         if (ratioVal === "Custom") {
-            drawSize(ctx, controls, customWidthVal, customHeightVal, y, width);
+            drawSize(ctx, controls, customWidthVal, customHeightVal, y, width, customSizeLabels);
         } else {
             drawPresetStack(
                 ctx,
@@ -203,7 +210,7 @@ function setupQuickLatentNode(node) {
         }
         y += 84;
 
-        drawLabel(ctx, "Batch Size", y + 8, width);
+        drawLabel(ctx, t("batchSize"), y + 8, width);
         y += 18;
         drawBatch(ctx, controls, "batch", batchVal, y, width);
         y += 32;
@@ -217,12 +224,12 @@ function setupQuickLatentNode(node) {
 
         if (x > this.size[0] - 40) return false;
 
-        const nextOrientation = getSegmentedValue(controls.orient, ORIENTATION_OPTIONS, x, y);
+        const nextOrientation = getSegmentedValue(controls.orient, orientationOptions, x, y);
         if (nextOrientation) {
             if (nextOrientation !== orientVal) {
-                startSelectionAnimation("orient", ORIENTATION_OPTIONS, orientVal, nextOrientation);
+                startSelectionAnimation("orient", orientationOptions, orientVal, nextOrientation);
                 orientVal = nextOrientation;
-                ratioOptions = buildRatioOptions(orientVal);
+                ratioOptions = buildRatioOptions(orientVal, t("custom"));
                 if (ratioVal === "Custom") {
                     const widthValue = customWidthVal;
                     customWidthVal = customHeightVal;
@@ -314,7 +321,7 @@ function setupQuickLatentNode(node) {
             batchVal = validBatch(batchSizeWidget?.value);
             customWidthVal = validCustom(customWidthWidget?.value);
             customHeightVal = validCustom(customHeightWidget?.value);
-            ratioOptions = buildRatioOptions(orientVal);
+            ratioOptions = buildRatioOptions(orientVal, t("custom"));
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
             syncToHidden();

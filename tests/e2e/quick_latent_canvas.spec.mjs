@@ -435,3 +435,28 @@ test("batch output label uses the theme color instead of green", async ({ page }
     expect(batchOutputLabel).toBeTruthy();
     expect(batchOutputLabel.color).toBe("#9a7bdc");
 });
+
+test.describe("zh-TW localization", () => {
+    test.use({ locale: "zh-TW" });
+
+    test("renders localized canvas labels without changing workflow values", async ({ page }) => {
+        await openHarness(page, { aspect_ratio: "Custom" });
+        const state = await getState(page);
+        const labels = state.drawnText.map((item) => item.text);
+
+        expect(labels).toEqual(expect.arrayContaining([
+            "方向",
+            "直向",
+            "橫向",
+            "長寬比",
+            "自訂",
+            "自訂尺寸",
+            "寬度",
+            "高度",
+            "輸出會向下對齊到最接近的 8 倍數",
+            "批次大小",
+        ]));
+        expect(state.widgets.orientation).toBe("Landscape");
+        expect(state.widgets.aspect_ratio).toBe("Custom");
+    });
+});

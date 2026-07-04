@@ -13,6 +13,7 @@ import {
     floorToAlignment,
     orientDimensions,
 } from "../js/config.js";
+import { createTranslator, normalizeLocale, resolveLocale } from "../js/i18n.js";
 import {
     getBatchClickAction,
     getControlStartY,
@@ -154,6 +155,33 @@ test("custom input values clamp to schema bounds without 8px alignment", () => {
     assert.equal(clampCustomDimension(4095), 4095);
     assert.equal(clampCustomDimension(9000), 4096);
     assert.equal(clampCustomDimension("not-a-number"), 1024);
+});
+
+test("aspect ratio custom label can be localized without changing option values", () => {
+    const t = createTranslator("zh-TW");
+    const options = buildRatioOptions("Portrait", t("custom"));
+
+    assert.deepEqual(
+        options,
+        [
+            { label: "1:1", value: "1:1" },
+            { label: "2:3", value: "2:3" },
+            { label: "3:4", value: "3:4" },
+            { label: "9:16", value: "16:9" },
+            { label: "自訂", value: "Custom" },
+        ],
+    );
+});
+
+test("i18n resolves supported browser language variants", () => {
+    assert.equal(normalizeLocale("zh-TW"), "zh-TW");
+    assert.equal(normalizeLocale("zh-Hant"), "zh-TW");
+    assert.equal(normalizeLocale("en-US"), "en");
+    assert.equal(resolveLocale(["fr-FR", "zh-TW"]), "zh-TW");
+
+    const t = createTranslator("zh-TW");
+    assert.equal(t("orientation"), "方向");
+    assert.equal(t("customRoundDownHint"), "輸出會向下對齊到最接近的 8 倍數");
 });
 
 test("custom output dimensions round down to the nearest multiple of 8", () => {
