@@ -23,6 +23,7 @@ export const PRESET_RESOLUTION_TABLE = {
 
 export const PRESET_RESOLUTIONS = ["1024", "1536", "2048"];
 export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "Custom"];
+export const ORIENTATIONS = ["Landscape", "Portrait"];
 export const RATIO_LABELS = {
     Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9", Custom: "Custom" },
     Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16", Custom: "Custom" },
@@ -32,19 +33,17 @@ export const MIN_WIDTH = 370;
 export const DIMENSION_ALIGNMENT = 8;
 export const CUSTOM_MIN = 512;
 export const CUSTOM_MAX = 4096;
+export const BATCH_SIZE_MIN = 1;
+export const BATCH_SIZE_MAX = 64;
 
-export function roundToAlignment(value) {
-    return Math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
+export function alignDownToMultiple(value) {
+    return value - (value % DIMENSION_ALIGNMENT);
 }
 
-export function floorToAlignment(value) {
-    return Math.floor(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
-}
-
-export function clampCustomDimension(value, fallback = 1024) {
+export function normalizeCustomDimensionValue(value, fallback = 1024) {
     const numericValue = Number(value);
-    const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
-    return Math.trunc(Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, safeValue)));
+    const integerValue = Number.isInteger(numericValue) ? numericValue : fallback;
+    return Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, integerValue));
 }
 
 export function orientDimensions(width, height, orientation) {
@@ -53,16 +52,16 @@ export function orientDimensions(width, height, orientation) {
     return [width, height];
 }
 
-export function calculateDimensions(presetResolution, aspectRatio, orientation) {
+export function calculatePresetDimensions(presetResolution, aspectRatio, orientation) {
     const [baseWidth, baseHeight] = PRESET_RESOLUTION_TABLE[aspectRatio][presetResolution];
     const [width, height] = orientDimensions(baseWidth, baseHeight, orientation);
-    return { width: roundToAlignment(width), height: roundToAlignment(height) };
+    return { width, height };
 }
 
 export function calculateCustomDimensions(customWidth, customHeight) {
     return {
-        width: floorToAlignment(clampCustomDimension(customWidth)),
-        height: floorToAlignment(clampCustomDimension(customHeight)),
+        width: alignDownToMultiple(normalizeCustomDimensionValue(customWidth)),
+        height: alignDownToMultiple(normalizeCustomDimensionValue(customHeight)),
     };
 }
 
@@ -75,10 +74,28 @@ export function buildRatioOptions(orientation, customLabel = "Custom") {
 
 export function buildPresetOptions(aspectRatio, orientation) {
     return PRESET_RESOLUTIONS.map((presetResolution) => {
-        const dimensions = calculateDimensions(presetResolution, aspectRatio, orientation);
+        const dimensions = calculatePresetDimensions(presetResolution, aspectRatio, orientation);
         return {
             label: `${dimensions.width} x ${dimensions.height}`,
             value: presetResolution,
         };
     });
+}
+
+export function normalizePresetResolution(value) {
+    return PRESET_RESOLUTIONS.includes(value) ? value : PRESET_RESOLUTIONS[0];
+}
+
+export function normalizeAspectRatio(value) {
+    return ASPECT_RATIOS.includes(value) ? value : ASPECT_RATIOS[0];
+}
+
+export function normalizeOrientation(value) {
+    return ORIENTATIONS.includes(value) ? value : ORIENTATIONS[0];
+}
+
+export function normalizeBatchSizeValue(value) {
+    const numericValue = Number(value);
+    const integerValue = Number.isInteger(numericValue) ? numericValue : BATCH_SIZE_MIN;
+    return Math.max(BATCH_SIZE_MIN, Math.min(BATCH_SIZE_MAX, integerValue));
 }

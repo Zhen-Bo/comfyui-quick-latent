@@ -18,24 +18,24 @@ const BLOCK_KEYS = [".", ",", "e", "E", "+", "-"];
  *
  * @param {object}   opts
  * @param {object}   opts.node      the QuickLatent node instance
- * @param {object}   opts.box       registered box region { x, y, w, h } in node-local graph units
+ * @param {object}   opts.box       registered box region { left, top, width, height } in node-local graph units
  * @param {number}   opts.value     current value shown/selected when the editor opens
  * @param {number}   opts.min       lower clamp bound (mirrors backend, 512)
  * @param {number}   opts.max       upper clamp bound (mirrors backend, 4096)
- * @param {(v:number)=>void} opts.onCommit  called once with the clamped integer on commit
+ * @param {(value:number)=>void} opts.onCommit  called once with the clamped integer on commit
  */
 export function openNumberInput({ node, box, value, min, max, onCommit }) {
     // Re-entrancy guard: only one editor at a time (RESEARCH Pitfall 6).
     if (node._sizeInput) return;
 
-    // Coordinate transform — node-local (box.x, box.y) -> viewport client px.
+    // Coordinate transform — node-local (box.left, box.top) -> viewport client px.
     // VERIFIED against ComfyUI frontend 1.32.9 DragAndScale/adjustMouseEvent:
     // ds.scale is already CSS px per graph unit, so there is NO devicePixelRatio term.
-    const s = app.canvas.ds.scale;
-    const rect = app.canvas.canvas.getBoundingClientRect();
-    const [ox, oy] = app.canvas.ds.offset;
-    const left = rect.left + (node.pos[0] + box.x + ox) * s;
-    const top = rect.top + (node.pos[1] + box.y + oy) * s;
+    const graphToCssScale = app.canvas.ds.scale;
+    const canvasRect = app.canvas.canvas.getBoundingClientRect();
+    const [viewportOffsetX, viewportOffsetY] = app.canvas.ds.offset;
+    const inputLeft = canvasRect.left + (node.pos[0] + box.left + viewportOffsetX) * graphToCssScale;
+    const inputTop = canvasRect.top + (node.pos[1] + box.top + viewportOffsetY) * graphToCssScale;
 
     // Build the element with createElement + property/style assignment ONLY.
     // Never innerHTML with an interpolated value (ASVS V5 / threat T-05-01).
@@ -46,11 +46,11 @@ export function openNumberInput({ node, box, value, min, max, onCommit }) {
     input.value = String(value);
     Object.assign(input.style, {
         position: "fixed",
-        left: `${left}px`,
-        top: `${top}px`,
-        width: `${box.w * s}px`,
-        height: `${box.h * s}px`,
-        fontSize: `${12 * s}px`,
+        left: `${inputLeft}px`,
+        top: `${inputTop}px`,
+        width: `${box.width * graphToCssScale}px`,
+        height: `${box.height * graphToCssScale}px`,
+        fontSize: `${12 * graphToCssScale}px`,
         boxSizing: "border-box",
         textAlign: "center",
         padding: "0",
@@ -60,7 +60,7 @@ export function openNumberInput({ node, box, value, min, max, onCommit }) {
         color: "#e8e8f0",
         background: "#252538",
         border: "1px solid #7c5cbf",
-        borderRadius: `${4 * s}px`,
+        borderRadius: `${4 * graphToCssScale}px`,
         zIndex: "10000",
         outline: "none",
     });
@@ -81,11 +81,11 @@ export function openNumberInput({ node, box, value, min, max, onCommit }) {
         // commit; guard so it fires exactly once (RESEARCH Pitfall 1).
         if (done) return;
         done = true;
-        let v = parseInt(input.value, 10);
-        if (Number.isNaN(v)) v = value;              // blank/garbage -> revert to prior value
-        v = Math.max(min, Math.min(max, v));         // clamp [512,4096] (mirror backend, D-04)
+        const inputText = input.value.trim();
+        let committedValue = /^\d+$/.test(inputText) ? Number(inputText) : value; // blank/garbage -> revert to prior value
+        committedValue = Math.max(min, Math.min(max, committedValue));         // clamp [512,4096] (mirror backend, D-04)
         cleanup();
-        onCommit(v);
+        onCommit(committedValue);
     };
     const cancel = () => {
         if (done) return;
@@ -106,5 +106,3 @@ export function openNumberInput({ node, box, value, min, max, onCommit }) {
     input.addEventListener("blur", commit);          // outside/canvas click blurs (LiteGraph focuses canvas)
     window.addEventListener("wheel", onWheel, true);
 }
-
-export const openSizeInput = openNumberInput;

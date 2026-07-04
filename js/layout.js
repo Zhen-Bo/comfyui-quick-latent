@@ -33,8 +33,13 @@ export function getOutputValueLabelPosition(node, index) {
     return [slotX - OUTPUT_LABEL_GAP, slotY];
 }
 
-export function getOutputValueLabels(ds) {
-    return [String(ds.width), String(ds.height), "LAT", String(ds.batch)];
+export function getOutputValueLabels(outputState) {
+    return [
+        String(outputState.outputWidth),
+        String(outputState.outputHeight),
+        "LAT",
+        String(outputState.batchSize),
+    ];
 }
 
 export function getQuickLatentOutputCount() {
@@ -59,22 +64,15 @@ export function getQuickLatentMinHeight(outputCount) {
 
 export function getBatchClickAction(control, x, y) {
     if (!control) return null;
-    if (x < control.x || x > control.x + control.w) return null;
-    if (y < control.y || y > control.y + control.h) return null;
+    if (!containsPoint(control, x, y)) return null;
 
-    const localX = x - control.x;
-    const buttonW = control.buttonW || control.h;
-    if (localX < buttonW) return "decrement";
-    if (localX > control.w - buttonW) return "increment";
+    const localX = x - control.left;
+    const buttonWidth = control.buttonWidth || control.height;
+    if (localX < buttonWidth) return "decrement";
+    if (localX > control.width - buttonWidth) return "increment";
 
     const valueBox = control.valueBox;
-    if (
-        valueBox
-        && x >= valueBox.x
-        && x <= valueBox.x + valueBox.w
-        && y >= valueBox.y
-        && y <= valueBox.y + valueBox.h
-    ) {
+    if (containsPoint(valueBox, x, y)) {
         return "edit";
     }
 
@@ -83,24 +81,32 @@ export function getBatchClickAction(control, x, y) {
 
 export function getSizeBoxClickAction(controls, x, y) {
     if (!controls) return null;
-    const inside = (box) =>
-        box && x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h;
-    if (inside(controls.sizeW)) return "sizeW";
-    if (inside(controls.sizeH)) return "sizeH";
+    if (containsPoint(controls.sizeW, x, y)) return "sizeW";
+    if (containsPoint(controls.sizeH, x, y)) return "sizeH";
     return null;
 }
 
 export function getPresetStackClickValue(control, x, y) {
     if (!control) return null;
-    if (x < control.x || x > control.x + control.w) return null;
-    if (y < control.y || y >= control.y + control.h) return null;
+    if (x < control.left || x > control.left + control.width) return null;
+    if (y < control.top || y >= control.top + control.height) return null;
 
-    const rowStride = control.rowH + control.gap;
-    const index = Math.floor((y - control.y) / rowStride);
-    const rowOffset = (y - control.y) - index * rowStride;
+    const rowStride = control.rowHeight + control.rowGap;
+    const index = Math.floor((y - control.top) / rowStride);
+    const rowOffset = (y - control.top) - index * rowStride;
     if (index < 0 || index >= control.options.length) return null;
-    if (rowOffset >= control.rowH) return null;
+    if (rowOffset >= control.rowHeight) return null;
     return control.options[index].value;
+}
+
+function containsPoint(rect, x, y) {
+    return Boolean(
+        rect
+        && x >= rect.left
+        && x <= rect.left + rect.width
+        && y >= rect.top
+        && y <= rect.top + rect.height,
+    );
 }
 
 export function normalizeOutputSlots(outputs) {

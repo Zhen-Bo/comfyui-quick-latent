@@ -41,6 +41,9 @@ class TestCustomDimensionsClampAndRound:
     def test_mixed_clamp_both_axes(self):
         assert calculate_custom_dimensions(5000, 300) == (4096, 512)
 
+    def test_non_integer_values_fall_back_before_alignment(self):
+        assert calculate_custom_dimensions(513.5, "2048") == (1024, 1024)
+
 
 CUSTOM_RAW_DIMS = [0, 100, 512, 513, 700, 1024, 1920, 3000, 4096, 9000]
 

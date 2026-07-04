@@ -1,9 +1,10 @@
 import { app } from "../../scripts/app.js";
 import {
-    PRESET_RESOLUTIONS, ASPECT_RATIOS, MIN_WIDTH,
+    MIN_WIDTH,
     CUSTOM_MIN, CUSTOM_MAX,
-    calculateDimensions, calculateCustomDimensions,
-    buildRatioOptions, buildPresetOptions, clampCustomDimension,
+    calculatePresetDimensions, calculateCustomDimensions,
+    buildRatioOptions, buildPresetOptions,
+    normalizeBatchSizeValue,
 } from "./config.js";
 import {
     drawLabel, drawSegmented, drawPresetStack,
@@ -20,7 +21,14 @@ import {
     normalizeOutputSlots,
 } from "./layout.js";
 import { openNumberInput } from "./size_input.js";
-import { createTranslator } from "./i18n.js";
+import { createTranslator, loadLocaleMessages } from "./i18n.js";
+import { SelectionAnimationController } from "./selection_animation.js";
+import {
+    getQuickLatentWidgets,
+    hideNativeWidgets,
+    readWidgetState,
+    writeWidgetState,
+} from "./widget_state.js";
 
 const SELECTION_ANIMATION_MS = 170;
 
@@ -29,148 +37,64 @@ app.registerExtension({
 
     async beforeRegisterNodeDef(nodeType, nodeData, _app) {
         if (nodeData.name !== "QuickLatent") return;
+        const translate = createTranslator(await loadLocaleMessages());
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             onNodeCreated?.apply(this, []);
-            setupQuickLatentNode(this);
+            setupQuickLatentNode(this, translate);
         };
     },
 });
 
-function setupQuickLatentNode(node) {
-    const t = createTranslator();
+function setupQuickLatentNode(node, translate) {
     const orientationOptions = [
-        { label: t("portrait"), value: "Portrait" },
-        { label: t("landscape"), value: "Landscape" },
+        { label: translate("portrait"), value: "Portrait" },
+        { label: translate("landscape"), value: "Landscape" },
     ];
     const customSizeLabels = {
-        width: t("width"),
-        height: t("height"),
-        hint: t("customRoundDownHint"),
+        width: translate("width"),
+        height: translate("height"),
+        hint: translate("customRoundDownHint"),
     };
-    const presetResolutionWidget = node.widgets.find((widget) => widget.name === "preset_resolution");
-    const aspectRatioWidget = node.widgets.find((widget) => widget.name === "aspect_ratio");
-    const orientationWidget = node.widgets.find((widget) => widget.name === "orientation");
-    const batchSizeWidget = node.widgets.find((widget) => widget.name === "batch_size");
-    const customWidthWidget = node.widgets.find((widget) => widget.name === "custom_width");
-    const customHeightWidget = node.widgets.find((widget) => widget.name === "custom_height");
-
-    [
-        presetResolutionWidget,
-        aspectRatioWidget,
-        orientationWidget,
-        batchSizeWidget,
-        customWidthWidget,
-        customHeightWidget,
-    ].forEach((widget) => {
-        if (widget) {
-            widget.hidden = true;
-            widget.type = "hidden";
-            widget.computeSize = () => [0, -4];
-        }
-    });
+    const widgets = getQuickLatentWidgets(node);
+    hideNativeWidgets(widgets);
 
     if (node.inputs) node.inputs.length = 0;
     normalizeOutputSlots(node.outputs);
 
-    let presetVal = validPreset(presetResolutionWidget?.value);
-    let orientVal = validOrientation(orientationWidget?.value);
-    let ratioVal = validRatio(aspectRatioWidget?.value);
-    let batchVal = validBatch(batchSizeWidget?.value);
-    let customWidthVal = validCustom(customWidthWidget?.value);
-    let customHeightVal = validCustom(customHeightWidget?.value);
-
-    let ratioOptions = buildRatioOptions(orientVal, t("custom"));
+    let widgetState = readWidgetState(widgets);
+    let ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
     const controls = {};
-    const animations = {};
-    let animationFrame = null;
-    const ds = { width: 0, height: 0, batch: 1 };
+    const outputState = { outputWidth: 0, outputHeight: 0, batchSize: 1 };
     const outputCount = node.outputs?.length || 4;
-    let contentMinH = getQuickLatentMinHeight(outputCount);
+    let contentMinHeight = getQuickLatentMinHeight(outputCount);
+    const selectionAnimations = new SelectionAnimationController({
+        durationMs: SELECTION_ANIMATION_MS,
+        onFrame: () => node.setDirtyCanvas(true, false),
+    });
 
-    function widgetWidth() {
+    function getControlAreaWidth() {
         return node.size[0] - getOutputColumnReservedWidth();
     }
 
-    function recalculate() {
-        const dimensions = ratioVal === "Custom"
-            ? calculateCustomDimensions(customWidthVal, customHeightVal)
-            : calculateDimensions(presetVal, ratioVal, orientVal);
-        ds.width = dimensions.width;
-        ds.height = dimensions.height;
-        ds.batch = batchVal;
+    function updateOutputState() {
+        const dimensions = widgetState.aspectRatio === "Custom"
+            ? calculateCustomDimensions(widgetState.customWidth, widgetState.customHeight)
+            : calculatePresetDimensions(
+                widgetState.presetResolution,
+                widgetState.aspectRatio,
+                widgetState.orientation,
+            );
+        outputState.outputWidth = dimensions.width;
+        outputState.outputHeight = dimensions.height;
+        outputState.batchSize = widgetState.batchSize;
         node.setDirtyCanvas(true, false);
     }
 
-    function easeOutCubic(progress) {
-        return 1 - Math.pow(1 - progress, 3);
-    }
-
-    function animationPosition(name) {
-        const animation = animations[name];
-        if (!animation) return null;
-
-        const elapsed = performance.now() - animation.startedAt;
-        const progress = Math.min(1, elapsed / animation.duration);
-        if (progress >= 1) {
-            delete animations[name];
-            return null;
-        }
-
-        const easedProgress = easeOutCubic(progress);
-        return animation.fromIndex + (animation.toIndex - animation.fromIndex) * easedProgress;
-    }
-
-    function selectedIndex(options, value) {
-        return options.findIndex((option) => option.value === value);
-    }
-
-    function startSelectionAnimation(name, options, fromValue, toValue) {
-        const toIndex = selectedIndex(options, toValue);
-        if (toIndex < 0) return;
-
-        const currentPosition = animationPosition(name);
-        const fromIndex = currentPosition ?? selectedIndex(options, fromValue);
-        if (fromIndex < 0 || fromIndex === toIndex) return;
-
-        animations[name] = {
-            fromIndex,
-            toIndex,
-            startedAt: performance.now(),
-            duration: SELECTION_ANIMATION_MS,
-        };
-        requestSelectionAnimationFrame();
-    }
-
-    function requestSelectionAnimationFrame() {
-        if (animationFrame !== null || typeof requestAnimationFrame !== "function") return;
-        animationFrame = requestAnimationFrame(stepSelectionAnimation);
-    }
-
-    function stepSelectionAnimation() {
-        animationFrame = null;
-        const now = performance.now();
-        for (const [name, animation] of Object.entries(animations)) {
-            if (now - animation.startedAt >= animation.duration) {
-                delete animations[name];
-            }
-        }
-
-        node.setDirtyCanvas(true, false);
-        if (Object.keys(animations).length > 0) {
-            requestSelectionAnimationFrame();
-        }
-    }
-
-    function syncToHidden() {
-        if (presetResolutionWidget) presetResolutionWidget.value = presetVal;
-        if (aspectRatioWidget) aspectRatioWidget.value = ratioVal;
-        if (orientationWidget) orientationWidget.value = orientVal;
-        if (batchSizeWidget) batchSizeWidget.value = batchVal;
-        if (customWidthWidget) customWidthWidget.value = customWidthVal;
-        if (customHeightWidget) customHeightWidget.value = customHeightVal;
-        recalculate();
+    function syncHiddenWidgetsAndRecalculate() {
+        writeWidgetState(widgets, widgetState);
+        updateOutputState();
     }
 
     const origDrawFG = node.onDrawForeground;
@@ -178,132 +102,155 @@ function setupQuickLatentNode(node) {
         if (origDrawFG) origDrawFG.call(this, ctx);
         if (this.flags?.collapsed) return;
 
-        const width = widgetWidth();
-        drawOutputValues(ctx, ds, this);
+        const controlAreaWidth = getControlAreaWidth();
+        drawOutputValues(ctx, outputState, this);
 
         let y = getControlStartY();
-        drawLabel(ctx, t("orientation"), y + 8, width);
+        drawLabel(ctx, translate("orientation"), y + 8, controlAreaWidth);
         y += 18;
-        drawSegmented(ctx, controls, "orient", orientationOptions, orientVal, y, width, animationPosition("orient"));
+        drawSegmented(
+            ctx,
+            controls,
+            "orient",
+            orientationOptions,
+            widgetState.orientation,
+            y,
+            controlAreaWidth,
+            selectionAnimations.position("orient"),
+        );
         y += 32;
 
-        drawLabel(ctx, t("aspectRatio"), y + 8, width);
+        drawLabel(ctx, translate("aspectRatio"), y + 8, controlAreaWidth);
         y += 18;
-        drawSegmented(ctx, controls, "ratio", ratioOptions, ratioVal, y, width, animationPosition("ratio"));
+        drawSegmented(
+            ctx,
+            controls,
+            "ratio",
+            ratioOptions,
+            widgetState.aspectRatio,
+            y,
+            controlAreaWidth,
+            selectionAnimations.position("ratio"),
+        );
         y += 32;
 
-        drawLabel(ctx, ratioVal === "Custom" ? t("customSize") : t("presetResolution"), y + 8, width);
+        drawLabel(
+            ctx,
+            widgetState.aspectRatio === "Custom" ? translate("customSize") : translate("presetResolution"),
+            y + 8,
+            controlAreaWidth,
+        );
         y += 18;
-        if (ratioVal === "Custom") {
-            drawSize(ctx, controls, customWidthVal, customHeightVal, y, width, customSizeLabels);
+        if (widgetState.aspectRatio === "Custom") {
+            drawSize(ctx, controls, widgetState.customWidth, widgetState.customHeight, y, controlAreaWidth, customSizeLabels);
         } else {
             drawPresetStack(
                 ctx,
                 controls,
                 "resolution",
-                buildPresetOptions(ratioVal, orientVal),
-                presetVal,
+                buildPresetOptions(widgetState.aspectRatio, widgetState.orientation),
+                widgetState.presetResolution,
                 y,
-                width,
-                animationPosition("resolution"),
+                controlAreaWidth,
+                selectionAnimations.position("resolution"),
             );
         }
         y += 84;
 
-        drawLabel(ctx, t("batchSize"), y + 8, width);
+        drawLabel(ctx, translate("batchSize"), y + 8, controlAreaWidth);
         y += 18;
-        drawBatch(ctx, controls, "batch", batchVal, y, width);
+        drawBatch(ctx, controls, "batch", widgetState.batchSize, y, controlAreaWidth);
         y += 32;
 
-        contentMinH = y;
+        contentMinHeight = y;
     };
 
     node.onMouseDown = function (_event, localPos) {
-        const x = localPos[0];
-        const y = localPos[1];
+        const pointerX = localPos[0];
+        const pointerY = localPos[1];
 
-        if (x > this.size[0] - 40) return false;
+        if (pointerX > this.size[0] - 40) return false;
 
-        const nextOrientation = getSegmentedValue(controls.orient, orientationOptions, x, y);
+        const nextOrientation = getSegmentedValue(controls.orient, orientationOptions, pointerX, pointerY);
         if (nextOrientation) {
-            if (nextOrientation !== orientVal) {
-                startSelectionAnimation("orient", orientationOptions, orientVal, nextOrientation);
-                orientVal = nextOrientation;
-                ratioOptions = buildRatioOptions(orientVal, t("custom"));
-                if (ratioVal === "Custom") {
-                    const widthValue = customWidthVal;
-                    customWidthVal = customHeightVal;
-                    customHeightVal = widthValue;
+            if (nextOrientation !== widgetState.orientation) {
+                selectionAnimations.start("orient", orientationOptions, widgetState.orientation, nextOrientation);
+                widgetState.orientation = nextOrientation;
+                ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
+                if (widgetState.aspectRatio === "Custom") {
+                    const previousCustomWidth = widgetState.customWidth;
+                    widgetState.customWidth = widgetState.customHeight;
+                    widgetState.customHeight = previousCustomWidth;
                 }
-                syncToHidden();
+                syncHiddenWidgetsAndRecalculate();
             }
             return true;
         }
 
-        const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, x, y);
+        const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, pointerX, pointerY);
         if (nextRatio) {
-            if (nextRatio !== ratioVal) {
-                startSelectionAnimation("ratio", ratioOptions, ratioVal, nextRatio);
+            if (nextRatio !== widgetState.aspectRatio) {
+                selectionAnimations.start("ratio", ratioOptions, widgetState.aspectRatio, nextRatio);
             }
-            ratioVal = nextRatio;
-            syncToHidden();
+            widgetState.aspectRatio = nextRatio;
+            syncHiddenWidgetsAndRecalculate();
             return true;
         }
 
-        if (ratioVal === "Custom") {
-            const sizeAction = getSizeBoxClickAction(controls, x, y);
+        if (widgetState.aspectRatio === "Custom") {
+            const sizeAction = getSizeBoxClickAction(controls, pointerX, pointerY);
             if (sizeAction) {
                 const isWidth = sizeAction === "sizeW";
                 openNumberInput({
                     node: this,
                     box: isWidth ? controls.sizeW : controls.sizeH,
-                    value: isWidth ? customWidthVal : customHeightVal,
+                    value: isWidth ? widgetState.customWidth : widgetState.customHeight,
                     min: CUSTOM_MIN,
                     max: CUSTOM_MAX,
                     onCommit: (value) => {
-                        if (isWidth) customWidthVal = value;
-                        else customHeightVal = value;
-                        syncToHidden();
+                        if (isWidth) widgetState.customWidth = value;
+                        else widgetState.customHeight = value;
+                        syncHiddenWidgetsAndRecalculate();
                     },
                 });
                 return true;
             }
         } else {
-            const nextPreset = getPresetStackClickValue(controls.resolution, x, y);
+            const nextPreset = getPresetStackClickValue(controls.resolution, pointerX, pointerY);
             if (nextPreset) {
-                if (nextPreset !== presetVal) {
-                    startSelectionAnimation(
+                if (nextPreset !== widgetState.presetResolution) {
+                    selectionAnimations.start(
                         "resolution",
-                        buildPresetOptions(ratioVal, orientVal),
-                        presetVal,
+                        buildPresetOptions(widgetState.aspectRatio, widgetState.orientation),
+                        widgetState.presetResolution,
                         nextPreset,
                     );
                 }
-                presetVal = nextPreset;
-                syncToHidden();
+                widgetState.presetResolution = nextPreset;
+                syncHiddenWidgetsAndRecalculate();
                 return true;
             }
         }
 
-        const batchAction = getBatchClickAction(controls.batch, x, y);
+        const batchAction = getBatchClickAction(controls.batch, pointerX, pointerY);
         if (batchAction) {
-            if (batchAction === "decrement") batchVal = Math.max(1, batchVal - 1);
-            else if (batchAction === "increment") batchVal = Math.min(64, batchVal + 1);
+            if (batchAction === "decrement") widgetState.batchSize = normalizeBatchSizeValue(widgetState.batchSize - 1);
+            else if (batchAction === "increment") widgetState.batchSize = normalizeBatchSizeValue(widgetState.batchSize + 1);
             else if (batchAction === "edit") {
                 openNumberInput({
                     node: this,
                     box: controls.batch.valueBox,
-                    value: batchVal,
+                    value: widgetState.batchSize,
                     min: 1,
                     max: 64,
                     onCommit: (value) => {
-                        batchVal = value;
-                        syncToHidden();
+                        widgetState.batchSize = normalizeBatchSizeValue(value);
+                        syncHiddenWidgetsAndRecalculate();
                     },
                 });
                 return true;
             }
-            syncToHidden();
+            syncHiddenWidgetsAndRecalculate();
             return true;
         }
 
@@ -315,64 +262,38 @@ function setupQuickLatentNode(node) {
         if (origConfigure) origConfigure.call(this, config);
         normalizeOutputSlots(this.outputs);
         setTimeout(() => {
-            presetVal = validPreset(presetResolutionWidget?.value);
-            orientVal = validOrientation(orientationWidget?.value);
-            ratioVal = validRatio(aspectRatioWidget?.value);
-            batchVal = validBatch(batchSizeWidget?.value);
-            customWidthVal = validCustom(customWidthWidget?.value);
-            customHeightVal = validCustom(customHeightWidget?.value);
-            ratioOptions = buildRatioOptions(orientVal, t("custom"));
+            widgetState = readWidgetState(widgets);
+            ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
-            syncToHidden();
+            syncHiddenWidgetsAndRecalculate();
         }, 100);
     };
 
     node.getInputs = function () { return []; };
 
     node.size[0] = Math.max(node.size[0], MIN_WIDTH);
-    node.size[1] = Math.max(node.size[1], contentMinH);
+    node.size[1] = Math.max(node.size[1], contentMinHeight);
 
     node.computeSize = function () {
-        return [getQuickLatentMinWidth(), contentMinH];
+        return [getQuickLatentMinWidth(), contentMinHeight];
     };
 
     const origResize = node.onResize;
     node.onResize = function (size) {
         size[0] = Math.max(size[0], MIN_WIDTH);
-        size[1] = Math.max(size[1], contentMinH);
+        size[1] = Math.max(size[1], contentMinHeight);
         if (origResize) origResize.call(this, size);
     };
 
-    syncToHidden();
+    syncHiddenWidgetsAndRecalculate();
 }
 
-function getSegmentedValue(control, options, x, y) {
+function getSegmentedValue(control, options, pointerX, pointerY) {
     if (!control) return null;
-    if (x < control.x || x > control.x + control.w) return null;
-    if (y < control.y || y > control.y + control.h) return null;
+    if (pointerX < control.left || pointerX > control.left + control.width) return null;
+    if (pointerY < control.top || pointerY > control.top + control.height) return null;
 
-    const index = Math.floor((x - control.x) / control.segW);
+    const index = Math.floor((pointerX - control.left) / control.segmentWidth);
     return options[index]?.value || null;
-}
-
-function validPreset(value) {
-    return PRESET_RESOLUTIONS.includes(value) ? value : "1024";
-}
-
-function validRatio(value) {
-    return ASPECT_RATIOS.includes(value) ? value : "1:1";
-}
-
-function validOrientation(value) {
-    return value === "Portrait" || value === "Landscape" ? value : "Landscape";
-}
-
-function validBatch(value) {
-    const batch = Number(value) || 1;
-    return Math.max(1, Math.min(64, batch));
-}
-
-function validCustom(value) {
-    return clampCustomDimension(value);
 }

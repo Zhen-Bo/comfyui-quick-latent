@@ -1,7 +1,5 @@
 """Quick Latent node - ComfyUI custom node for direct latent size selection."""
 
-import math
-
 import torch
 import comfy.model_management
 
@@ -39,14 +37,21 @@ BATCH_SIZE_MIN = 1
 BATCH_SIZE_MAX = 64
 
 
-def round_to_alignment(value):
-    """Round a numeric value up to the configured dimension alignment."""
-    return math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
+def align_down_to_multiple(value):
+    """Align an integer dimension down to the configured multiple."""
+    return value - (value % DIMENSION_ALIGNMENT)
 
 
-def floor_to_alignment(value):
-    """Round a numeric value down to the configured dimension alignment."""
-    return math.floor(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
+def clamp_custom_dimension(value, fallback=1024):
+    """Clamp a custom dimension to the widget schema bounds."""
+    integer_value = value if type(value) is int else fallback
+    return max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, integer_value))
+
+
+def clamp_batch_size(value):
+    """Clamp batch size to the widget schema bounds."""
+    integer_value = value if type(value) is int else BATCH_SIZE_MIN
+    return max(BATCH_SIZE_MIN, min(BATCH_SIZE_MAX, integer_value))
 
 
 def orient_dimensions(width, height, orientation):
@@ -58,18 +63,17 @@ def orient_dimensions(width, height, orientation):
     return (width, height)
 
 
-def calculate_dimensions(preset_resolution, aspect_ratio, orientation):
+def calculate_preset_dimensions(preset_resolution, aspect_ratio, orientation):
     """Calculate direct output dimensions from a curated preset."""
     width, height = PRESET_RESOLUTION_TABLE[aspect_ratio][preset_resolution]
-    width, height = orient_dimensions(width, height, orientation)
-    return (round_to_alignment(width), round_to_alignment(height))
+    return orient_dimensions(width, height, orientation)
 
 
 def calculate_custom_dimensions(custom_width, custom_height):
     """Calculate direct output dimensions from a user-supplied custom size."""
-    width = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_width))
-    height = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_height))
-    return (floor_to_alignment(width), floor_to_alignment(height))
+    clamped_width = clamp_custom_dimension(custom_width)
+    clamped_height = clamp_custom_dimension(custom_height)
+    return (align_down_to_multiple(clamped_width), align_down_to_multiple(clamped_height))
 
 
 class QuickLatent:
@@ -109,12 +113,12 @@ class QuickLatent:
         custom_height=1024,
     ):
         """Generate a zero-filled latent tensor at the selected output size."""
-        batch_size = max(BATCH_SIZE_MIN, min(BATCH_SIZE_MAX, batch_size))
+        batch_size = clamp_batch_size(batch_size)
 
         if aspect_ratio == "Custom":
             width, height = calculate_custom_dimensions(custom_width, custom_height)
         else:
-            width, height = calculate_dimensions(preset_resolution, aspect_ratio, orientation)
+            width, height = calculate_preset_dimensions(preset_resolution, aspect_ratio, orientation)
 
         latent = torch.zeros(
             [batch_size, 4, height // 8, width // 8],

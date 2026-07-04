@@ -1,33 +1,5 @@
 const DEFAULT_LOCALE = "en";
-
-const TRANSLATIONS = {
-    en: {
-        orientation: "Orientation",
-        portrait: "Portrait",
-        landscape: "Landscape",
-        aspectRatio: "Aspect Ratio",
-        custom: "Custom",
-        customSize: "Custom Size",
-        presetResolution: "Preset Resolution",
-        batchSize: "Batch Size",
-        width: "Width",
-        height: "Height",
-        customRoundDownHint: "Output rounds down to nearest multiple of 8",
-    },
-    "zh-TW": {
-        orientation: "方向",
-        portrait: "直向",
-        landscape: "橫向",
-        aspectRatio: "長寬比",
-        custom: "自訂",
-        customSize: "自訂尺寸",
-        presetResolution: "預設解析度",
-        batchSize: "批次大小",
-        width: "寬度",
-        height: "高度",
-        customRoundDownHint: "輸出會向下對齊到最接近的 8 倍數",
-    },
-};
+const SUPPORTED_LOCALES = new Set([DEFAULT_LOCALE, "zh-TW"]);
 
 export function normalizeLocale(locale) {
     return matchLocale(locale) || DEFAULT_LOCALE;
@@ -38,10 +10,35 @@ export function resolveLocale(languageCandidates = browserLanguages()) {
 
     for (const candidate of candidates) {
         const locale = matchLocale(candidate);
-        if (locale && TRANSLATIONS[locale]) return locale;
+        if (locale && SUPPORTED_LOCALES.has(locale)) return locale;
     }
 
     return DEFAULT_LOCALE;
+}
+
+export async function loadLocaleMessages(languageCandidates = browserLanguages()) {
+    const locale = resolveLocale(languageCandidates);
+    const defaultMessages = await fetchLocaleMessages(DEFAULT_LOCALE);
+    if (locale === DEFAULT_LOCALE) return defaultMessages;
+
+    const localeMessages = await fetchLocaleMessages(locale);
+    return { ...defaultMessages, ...localeMessages };
+}
+
+export function createTranslator(messages = {}) {
+    return (key) => messages[key] || key;
+}
+
+async function fetchLocaleMessages(locale) {
+    if (typeof fetch !== "function") return {};
+
+    try {
+        const response = await fetch(new URL(`./locales/${locale}.json`, import.meta.url));
+        if (!response.ok) return {};
+        return response.json();
+    } catch {
+        return {};
+    }
 }
 
 function matchLocale(locale) {
@@ -53,12 +50,6 @@ function matchLocale(locale) {
     if (normalized.startsWith("en")) return "en";
 
     return null;
-}
-
-export function createTranslator(locale = resolveLocale()) {
-    const messages = TRANSLATIONS[locale] || TRANSLATIONS[DEFAULT_LOCALE];
-
-    return (key) => messages[key] || TRANSLATIONS[DEFAULT_LOCALE][key] || key;
 }
 
 function browserLanguages() {
