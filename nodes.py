@@ -1,202 +1,128 @@
-"""Quick Latent node - ComfyUI custom node for preset-based latent image generation.
-
-Provides a resolution lookup table, dimension calculator, and QuickLatent node class
-for ComfyUI latent generation. All dimensions are rounded up to the nearest multiple of 8
-for clean latent alignment.
-"""
+"""Quick Latent node - ComfyUI custom node for direct latent size selection."""
 
 import math
+
 import torch
 import comfy.model_management
 
-# Resolution table: landscape-native (W, H) pairs keyed by tier and aspect ratio.
-# These are TARGET resolutions (what the user wants after upscaling).
-# Values sourced from PROJECT.md - exact, not computed from ratios.
-RESOLUTION_TABLE = {
-    "1K": {
-        "1:1": (1024, 1024),
-        "2:3": (1280, 1920),
-        "3:4": (1440, 1920),
-        "16:9": (1920, 1080),
-        "21:9": (2560, 1088),
+
+PRESET_RESOLUTION_TABLE = {
+    "1:1": {
+        "1024": (1024, 1024),
+        "1536": (1536, 1536),
+        "2048": (2048, 2048),
     },
-    "2K": {
-        "1:1": (2048, 2048),
-        "2:3": (1712, 2560),
-        "3:4": (1920, 2560),
-        "16:9": (2560, 1440),
-        "21:9": (3440, 1440),
+    "2:3": {
+        "1024": (1024, 1536),
+        "1536": (1280, 1920),
+        "2048": (1536, 2304),
     },
-    "4K": {
-        "1:1": (2160, 2160),
-        "2:3": (2560, 3840),
-        "3:4": (2880, 3840),
-        "16:9": (3840, 2160),
-        "21:9": (5120, 2160),
+    "3:4": {
+        "1024": (1152, 1536),
+        "1536": (1344, 1792),
+        "2048": (1536, 2048),
+    },
+    "16:9": {
+        "1024": (1536, 864),
+        "1536": (1920, 1080),
+        "2048": (2560, 1440),
     },
 }
 
+PRESET_RESOLUTIONS = ["1024", "1536", "2048"]
+ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "Custom"]
 DIMENSION_ALIGNMENT = 8
 
-# Custom-mode dimension bounds (D-04/D-05). Referenced by BOTH the INPUT_TYPES
-# widget config and calculate_custom_dimensions so widget bounds and the
-# server-side clamp bounds cannot drift apart.
 CUSTOM_DIMENSION_MIN = 512
 CUSTOM_DIMENSION_MAX = 4096
+BATCH_SIZE_MIN = 1
+BATCH_SIZE_MAX = 64
 
 
 def round_to_alignment(value):
-    """Round a numeric value up to the configured dimension alignment.
-
-    Examples:
-        round_to_alignment(540)  -> 544  (ceil(540/8) = 68)
-        round_to_alignment(960)  -> 960  (already a multiple of 8)
-        round_to_alignment(1080) -> 1080 (already a multiple of 8)
-    """
+    """Round a numeric value up to the configured dimension alignment."""
     return math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
 
 
-def calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor):
-    """Calculate latent-aligned dimensions from resolution parameters.
+def floor_to_alignment(value):
+    """Round a numeric value down to the configured dimension alignment."""
+    return math.floor(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT
 
-    Args:
-        resolution: Tier key ("1K", "2K", or "4K")
-        aspect_ratio: Ratio key ("1:1", "2:3", "3:4", "16:9", or "21:9")
-        orientation: "Landscape" or "Portrait"
-        scale_factor: Division factor (1.0 to 2.0)
 
-    Returns:
-        Tuple of (width, height) as integers, both divisible by 8.
+def orient_dimensions(width, height, orientation):
+    """Return dimensions matching the requested orientation."""
+    if orientation == "Landscape" and width < height:
+        return (height, width)
+    if orientation == "Portrait" and height < width:
+        return (height, width)
+    return (width, height)
 
-    Algorithm:
-        1. Look up (w, h) from RESOLUTION_TABLE
-        2. If Portrait: swap to (h, w)
-        3. Divide both by scale_factor
-        4. Apply round_to_alignment to both
-        5. Return as integer tuple
-    """
-    w, h = RESOLUTION_TABLE[resolution][aspect_ratio]
 
-    if orientation == "Landscape":
-        if w < h:
-            w, h = h, w
-    elif orientation == "Portrait":
-        if h < w:
-            w, h = h, w
-
-    w = w / scale_factor
-    h = h / scale_factor
-
-    w = round_to_alignment(w)
-    h = round_to_alignment(h)
-
-    return (int(w), int(h))
+def calculate_dimensions(preset_resolution, aspect_ratio, orientation):
+    """Calculate direct output dimensions from a curated preset."""
+    width, height = PRESET_RESOLUTION_TABLE[aspect_ratio][preset_resolution]
+    width, height = orient_dimensions(width, height, orientation)
+    return (round_to_alignment(width), round_to_alignment(height))
 
 
 def calculate_custom_dimensions(custom_width, custom_height):
-    """Calculate latent-aligned dimensions from a user-supplied custom size.
-
-    Custom width/height are the RAW OUTPUT (latent) size the user wants — the
-    node emits exactly these dimensions, 8-aligned (D-01, revised 2026-07-04
-    after Phase 5 UAT). scale_factor does NOT divide here; it is display-only
-    (the UI shows Target = output x scale_factor). This is intentionally
-    different from the preset path, where the table value is a target that
-    scale divides.
-
-    Args:
-        custom_width: User-entered output/latent width (integer from the INT widget)
-        custom_height: User-entered output/latent height (integer from the INT widget)
-
-    Returns:
-        Tuple of (width, height) as integers, both divisible by 8.
-
-    Algorithm (D-01/D-05/D-06):
-        1. Clamp each axis to [CUSTOM_DIMENSION_MIN, CUSTOM_DIMENSION_MAX] so
-           below-min / blank / 0 becomes the min and above-max becomes the max
-           (never raises).
-        2. Apply round_to_alignment (ceil-to-8) to each. No scale division —
-           the entered size IS the output latent size.
-
-    Unlike calculate_dimensions this takes NO orientation argument and does NOT
-    swap width/height: the frontend owns the Portrait/Landscape swap (Phase 5),
-    so swapping here would double-swap (D-06).
-    """
-    w = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_width))
-    h = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_height))
-
-    return (round_to_alignment(w), round_to_alignment(h))
+    """Calculate direct output dimensions from a user-supplied custom size."""
+    width = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_width))
+    height = max(CUSTOM_DIMENSION_MIN, min(CUSTOM_DIMENSION_MAX, custom_height))
+    return (floor_to_alignment(width), floor_to_alignment(height))
 
 
 class QuickLatent:
-    """ComfyUI node for quick preset-based latent image generation.
-
-    Users select resolution tier, aspect ratio, orientation, and scale factor.
-    The node calculates correct latent dimensions and outputs ready-to-use tensors.
-    """
+    """ComfyUI node for quick direct latent image size generation."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "resolution": (["1K", "2K", "4K", "Custom"],),
-                "aspect_ratio": (["1:1", "2:3", "3:4", "16:9", "21:9"],),
+                "preset_resolution": (PRESET_RESOLUTIONS,),
+                "aspect_ratio": (ASPECT_RATIOS,),
                 "orientation": (["Landscape", "Portrait"],),
-                "scale_factor": ("FLOAT", {"default": 2.0, "min": 1.0, "max": 2.0, "step": 0.1}),
-                "batch_size": ("INT", {"default": 1, "min": 1, "max": 64}),
-                # custom_width / custom_height are appended at the END of `required`
-                # so existing v1.1 saved workflows (which have no custom widgets)
-                # stay positionally aligned in widgets_values and fall back to the
-                # defaults here (D-03 back-compat). Bounds reference the shared
-                # module constants so they cannot drift from the clamp (D-04).
-                "custom_width": ("INT", {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8}),
-                "custom_height": ("INT", {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8}),
+                "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN, "max": BATCH_SIZE_MAX}),
+                "custom_width": (
+                    "INT",
+                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8},
+                ),
+                "custom_height": (
+                    "INT",
+                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8},
+                ),
             }
         }
 
-    RETURN_TYPES = ("INT", "INT", "FLOAT", "LATENT", "INT")
-    RETURN_NAMES = ("OUTPUT_WIDTH", "OUTPUT_HEIGHT", "SCALE", "LATENT", "BATCH_SIZE")
+    RETURN_TYPES = ("INT", "INT", "LATENT", "INT")
+    RETURN_NAMES = ("OUTPUT_WIDTH", "OUTPUT_HEIGHT", "LATENT", "BATCH_SIZE")
     FUNCTION = "generate"
     CATEGORY = "QuickLatent"
 
-    def generate(self, resolution, aspect_ratio, orientation, scale_factor, batch_size,
-                 custom_width=1024, custom_height=1024):
-        """Generate a latent tensor with calculated dimensions.
+    def generate(
+        self,
+        preset_resolution,
+        aspect_ratio,
+        orientation,
+        batch_size,
+        custom_width=1024,
+        custom_height=1024,
+    ):
+        """Generate a zero-filled latent tensor at the selected output size."""
+        batch_size = max(BATCH_SIZE_MIN, min(BATCH_SIZE_MAX, batch_size))
 
-        Args:
-            resolution: Tier key ("1K", "2K", "4K", or "Custom")
-            aspect_ratio: Ratio key ("1:1", "2:3", "3:4", "16:9", or "21:9")
-            orientation: "Landscape" or "Portrait"
-            scale_factor: Division factor (1.0 to 2.0)
-            batch_size: Number of latent images to generate
-            custom_width: Target width when resolution == "Custom" (default 1024);
-                ignored for preset tiers. Defaulted so preset-only callers and old
-                saved workflows that never pass it keep working (D-03).
-            custom_height: Target height when resolution == "Custom" (default 1024);
-                ignored for preset tiers.
-
-        Returns:
-            Tuple of (width, height, scale_factor, {"samples": tensor}, batch_size)
-        """
-        # Clamp batch_size to minimum 1 (per D-11)
-        batch_size = max(1, batch_size)
-
-        # Calculate output dimensions. Custom mode takes the user width/height
-        # literally (no orientation swap, D-06); every preset value keeps the
-        # existing table-based path unchanged.
-        if resolution == "Custom":
+        if aspect_ratio == "Custom":
             width, height = calculate_custom_dimensions(custom_width, custom_height)
         else:
-            width, height = calculate_dimensions(resolution, aspect_ratio, orientation, scale_factor)
+            width, height = calculate_dimensions(preset_resolution, aspect_ratio, orientation)
 
-        # Create latent tensor: [batch, 4, h//8, w//8] on intermediate device
         latent = torch.zeros(
             [batch_size, 4, height // 8, width // 8],
-            device=comfy.model_management.intermediate_device()
+            device=comfy.model_management.intermediate_device(),
         )
 
-        return (width, height, scale_factor, {"samples": latent}, batch_size)
+        return (width, height, {"samples": latent}, batch_size)
 
 
-# Node registration mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {"QuickLatent": QuickLatent}
 NODE_DISPLAY_NAME_MAPPINGS = {"QuickLatent": "Quick Latent"}
