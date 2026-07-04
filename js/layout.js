@@ -1,11 +1,14 @@
+import { PORT_COLORS } from "./config.js";
+
 const DEFAULT_NODE_SLOT_HEIGHT = 20;
 const QUICK_LATENT_MIN_WIDTH = 370;
 const OUTPUT_LABEL_GAP = 12;
 const OUTPUT_COLUMN_RESERVED_WIDTH = 53;
 const OUTPUT_ROWS_PADDING = 6;
 const CONTROL_START_Y = 6;
-const CUSTOM_CONTROLS_HEIGHT = 294;
-const BATCH_BUTTON_HIT_WIDTH = 30;
+const CUSTOM_CONTROLS_HEIGHT = 252;
+const QUICK_LATENT_OUTPUT_COUNT = 4;
+const OUTPUT_SLOT_OFF_COLOR = "#8a8795";
 
 export function getNodeSlotHeight() {
     return (typeof LiteGraph !== "undefined" && LiteGraph.NODE_SLOT_HEIGHT) || DEFAULT_NODE_SLOT_HEIGHT;
@@ -31,7 +34,11 @@ export function getOutputValueLabelPosition(node, index) {
 }
 
 export function getOutputValueLabels(ds) {
-    return [String(ds.width), String(ds.height), ds.scale.toFixed(2), "LAT", String(ds.batch)];
+    return [String(ds.width), String(ds.height), "LAT", String(ds.batch)];
+}
+
+export function getQuickLatentOutputCount() {
+    return QUICK_LATENT_OUTPUT_COUNT;
 }
 
 export function getOutputColumnReservedWidth() {
@@ -56,8 +63,21 @@ export function getBatchClickAction(control, x, y) {
     if (y < control.y || y > control.y + control.h) return null;
 
     const localX = x - control.x;
-    if (localX < BATCH_BUTTON_HIT_WIDTH) return "decrement";
-    if (localX > control.w - BATCH_BUTTON_HIT_WIDTH) return "increment";
+    const buttonW = control.buttonW || control.h;
+    if (localX < buttonW) return "decrement";
+    if (localX > control.w - buttonW) return "increment";
+
+    const valueBox = control.valueBox;
+    if (
+        valueBox
+        && x >= valueBox.x
+        && x <= valueBox.x + valueBox.w
+        && y >= valueBox.y
+        && y <= valueBox.y + valueBox.h
+    ) {
+        return "edit";
+    }
+
     return null;
 }
 
@@ -70,12 +90,30 @@ export function getSizeBoxClickAction(controls, x, y) {
     return null;
 }
 
+export function getPresetStackClickValue(control, x, y) {
+    if (!control) return null;
+    if (x < control.x || x > control.x + control.w) return null;
+    if (y < control.y || y >= control.y + control.h) return null;
+
+    const rowStride = control.rowH + control.gap;
+    const index = Math.floor((y - control.y) / rowStride);
+    const rowOffset = (y - control.y) - index * rowStride;
+    if (index < 0 || index >= control.options.length) return null;
+    if (rowOffset >= control.rowH) return null;
+    return control.options[index].value;
+}
+
 export function normalizeOutputSlots(outputs) {
     if (!outputs) return;
+    outputs.length = Math.min(outputs.length, QUICK_LATENT_OUTPUT_COUNT);
 
-    for (const output of outputs) {
+    for (let index = 0; index < outputs.length; index++) {
+        const output = outputs[index];
         output.name = "";
         output.localized_name = "";
+        output.color = OUTPUT_SLOT_OFF_COLOR;
+        output.color_off = OUTPUT_SLOT_OFF_COLOR;
+        output.color_on = PORT_COLORS[index];
         delete output.pos;
     }
 }

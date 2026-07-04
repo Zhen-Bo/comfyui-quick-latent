@@ -1,40 +1,35 @@
-export const RESOLUTION_TABLE = {
-    "1K": {
-        "1:1": [1024, 1024],
-        "2:3": [1280, 1920],
-        "3:4": [1440, 1920],
-        "16:9": [1920, 1080],
-        "21:9": [2560, 1088],
+export const PRESET_RESOLUTION_TABLE = {
+    "1:1": {
+        "1024": [1024, 1024],
+        "1536": [1536, 1536],
+        "2048": [2048, 2048],
     },
-    "2K": {
-        "1:1": [2048, 2048],
-        "2:3": [1712, 2560],
-        "3:4": [1920, 2560],
-        "16:9": [2560, 1440],
-        "21:9": [3440, 1440],
+    "2:3": {
+        "1024": [1024, 1536],
+        "1536": [1280, 1920],
+        "2048": [1536, 2304],
     },
-    "4K": {
-        "1:1": [2160, 2160],
-        "2:3": [2560, 3840],
-        "3:4": [2880, 3840],
-        "16:9": [3840, 2160],
-        "21:9": [5120, 2160],
+    "3:4": {
+        "1024": [1152, 1536],
+        "1536": [1344, 1792],
+        "2048": [1536, 2048],
+    },
+    "16:9": {
+        "1024": [1536, 864],
+        "1536": [1920, 1080],
+        "2048": [2560, 1440],
     },
 };
 
-export const RESOLUTIONS = ["1K", "2K", "4K", "Custom"];
-export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "21:9"];
+export const PRESET_RESOLUTIONS = ["1024", "1536", "2048"];
+export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "Custom"];
 export const RATIO_LABELS = {
-    Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9", "21:9": "21:9" },
-    Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16", "21:9": "9:21" },
+    Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9", Custom: "Custom" },
+    Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16", Custom: "Custom" },
 };
-export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#66ff88", "#ff69b4", "#ff69b4"];
+export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
 export const MIN_WIDTH = 370;
 export const DIMENSION_ALIGNMENT = 8;
-
-// Custom-mode dimension bounds (D-04/D-13). Kept equal to nodes.py
-// CUSTOM_DIMENSION_MIN / CUSTOM_DIMENSION_MAX so the client preview clamps
-// exactly like the server-side calculate_custom_dimensions.
 export const CUSTOM_MIN = 512;
 export const CUSTOM_MAX = 4096;
 
@@ -42,47 +37,48 @@ export function roundToAlignment(value) {
     return Math.ceil(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
 }
 
-export function calculateDimensions(resolution, aspectRatio, orientation, scaleFactor) {
-    let [w, h] = RESOLUTION_TABLE[resolution][aspectRatio];
-    if (orientation === "Landscape") { if (w < h) [w, h] = [h, w]; }
-    else if (orientation === "Portrait") { if (h < w) [w, h] = [h, w]; }
-    return { width: roundToAlignment(w / scaleFactor), height: roundToAlignment(h / scaleFactor) };
+export function floorToAlignment(value) {
+    return Math.floor(value / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT;
 }
 
-export function getTargetDimensions(resolution, aspectRatio, orientation, scaleFactor) {
-    const dims = calculateDimensions(resolution, aspectRatio, orientation, scaleFactor);
+export function clampCustomDimension(value, fallback = 1024) {
+    const numericValue = Number(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
+    return Math.trunc(Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, safeValue)));
+}
+
+export function orientDimensions(width, height, orientation) {
+    if (orientation === "Landscape" && width < height) return [height, width];
+    if (orientation === "Portrait" && height < width) return [height, width];
+    return [width, height];
+}
+
+export function calculateDimensions(presetResolution, aspectRatio, orientation) {
+    const [baseWidth, baseHeight] = PRESET_RESOLUTION_TABLE[aspectRatio][presetResolution];
+    const [width, height] = orientDimensions(baseWidth, baseHeight, orientation);
+    return { width: roundToAlignment(width), height: roundToAlignment(height) };
+}
+
+export function calculateCustomDimensions(customWidth, customHeight) {
     return {
-        width: Math.round(dims.width * scaleFactor),
-        height: Math.round(dims.height * scaleFactor),
+        width: floorToAlignment(clampCustomDimension(customWidth)),
+        height: floorToAlignment(clampCustomDimension(customHeight)),
     };
 }
 
-// Client mirror of nodes.py calculate_custom_dimensions (D-01/D-13, revised
-// 2026-07-04 after Phase 5 UAT): the entered width/height ARE the raw output
-// (latent) size — clamp each axis to [CUSTOM_MIN, CUSTOM_MAX] then round8(value).
-// NO scale division (scale is display-only here) and NO orientation swap (the
-// frontend owns the Portrait/Landscape swap, D-06).
-export function calculateCustomDimensions(customW, customH) {
-    const clamp = (v) => Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, v));
-    return {
-        width: roundToAlignment(clamp(customW)),
-        height: roundToAlignment(clamp(customH)),
-    };
-}
-
-// Custom-aware target (D-09, revised): the entered size IS the output latent, so
-// the Target shown to the user is output x scaleFactor (e.g. 512 @ 2x -> 1024).
-export function getCustomTargetDimensions(customW, customH, scaleFactor) {
-    const dims = calculateCustomDimensions(customW, customH);
-    return {
-        width: Math.round(dims.width * scaleFactor),
-        height: Math.round(dims.height * scaleFactor),
-    };
-}
-
-export function buildRatioOptions(orient) {
-    return ASPECT_RATIOS.map((r) => ({
-        label: RATIO_LABELS[orient]?.[r] || r,
-        value: r,
+export function buildRatioOptions(orientation) {
+    return ASPECT_RATIOS.map((ratio) => ({
+        label: RATIO_LABELS[orientation]?.[ratio] || ratio,
+        value: ratio,
     }));
+}
+
+export function buildPresetOptions(aspectRatio, orientation) {
+    return PRESET_RESOLUTIONS.map((presetResolution) => {
+        const dimensions = calculateDimensions(presetResolution, aspectRatio, orientation);
+        return {
+            label: `${dimensions.width} x ${dimensions.height}`,
+            value: presetResolution,
+        };
+    });
 }
