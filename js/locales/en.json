@@ -1,0 +1,13 @@
+{
+    "orientation": "Orientation",
+    "portrait": "Portrait",
+    "landscape": "Landscape",
+    "aspectRatio": "Aspect Ratio",
+    "custom": "Custom",
+    "customSize": "Custom Size",
+    "presetResolution": "Preset Resolution",
+    "batchSize": "Batch Size",
+    "width": "Width",
+    "height": "Height",
+    "customRoundDownHint": "Output rounds down to nearest multiple of 8"
+}

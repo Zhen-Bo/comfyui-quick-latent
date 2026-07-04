@@ -1,4 +1,4 @@
-"""ComfyUI-QuickLatent - Quick preset-based latent image generation node.
+"""ComfyUI-QuickLatent - Quick direct-size latent image generation node.
 
 Exports NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS, and WEB_DIRECTORY
 for ComfyUI custom node registration.

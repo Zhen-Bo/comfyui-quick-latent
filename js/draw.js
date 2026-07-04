@@ -1,243 +1,264 @@
 import { PORT_COLORS } from "./config.js";
 import { getOutputValueLabelPosition, getOutputValueLabels } from "./layout.js";
 
-const PAD = 10;
-const SLIDER_EDGE_LABEL_OFFSET = 4;
-const SLIDER_TRACK_INSET = 27;
+const CONTROL_PADDING = 10;
+const CHOICE_FILL = "#252538";
+const CHOICE_BORDER = "#3f3b5a";
+const SELECTED_FILL = "#815fc8";
+const SELECTED_BORDER = "rgba(229, 219, 255, 0.58)";
+const SELECTED_TEXT = "#ffffff";
+const OPTION_TEXT = "#918da3";
+const INPUT_FILL = "#252538";
+const INPUT_BORDER = "#4d496a";
+const CUSTOM_ROW_HEIGHT = 26;
+const CUSTOM_ROW_COUNT = 3;
+const DEFAULT_SIZE_LABELS = {
+    width: "Width",
+    height: "Height",
+    hint: "Output rounds down to nearest multiple of 8",
+};
 
-export function drawLabel(ctx, text, y, widgetWidth, valueFn) {
-    ctx.fillStyle = "#6e6e85";
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, PAD, y);
+function drawSelectedPill(canvasContext, pillX, pillY, pillWidth, pillHeight, cornerRadius) {
+    canvasContext.beginPath();
+    canvasContext.roundRect(pillX, pillY, pillWidth, pillHeight, cornerRadius);
+    canvasContext.fillStyle = SELECTED_FILL;
+    canvasContext.fill();
+
+    canvasContext.beginPath();
+    canvasContext.roundRect(pillX + 0.75, pillY + 0.75, pillWidth - 1.5, pillHeight - 1.5, cornerRadius);
+    canvasContext.strokeStyle = SELECTED_BORDER;
+    canvasContext.lineWidth = 1.25;
+    canvasContext.stroke();
+}
+
+function drawFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius, fillColor, borderColor) {
+    canvasContext.beginPath();
+    canvasContext.roundRect(frameX, frameY, frameWidth, frameHeight, cornerRadius);
+    canvasContext.fillStyle = fillColor;
+    canvasContext.fill();
+    canvasContext.strokeStyle = borderColor;
+    canvasContext.lineWidth = 1;
+    canvasContext.stroke();
+}
+
+function drawChoiceFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius) {
+    drawFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius, CHOICE_FILL, CHOICE_BORDER);
+}
+
+function drawInputFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius) {
+    drawFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius, INPUT_FILL, INPUT_BORDER);
+}
+
+export function drawLabel(canvasContext, text, labelY, widgetWidth, valueFn) {
+    canvasContext.fillStyle = "#8d899f";
+    canvasContext.font = "10px sans-serif";
+    canvasContext.textAlign = "left";
+    canvasContext.textBaseline = "middle";
+    canvasContext.fillText(text, CONTROL_PADDING, labelY);
     if (valueFn) {
-        ctx.fillStyle = "#e8e8f0";
-        ctx.font = "bold 11px monospace";
-        ctx.textAlign = "right";
-        ctx.fillText(valueFn(), widgetWidth - PAD, y);
+        canvasContext.fillStyle = "#e8e8f0";
+        canvasContext.font = "bold 11px monospace";
+        canvasContext.textAlign = "right";
+        canvasContext.fillText(valueFn(), widgetWidth - CONTROL_PADDING, labelY);
     }
 }
 
-export function drawSegmented(ctx, controls, name, options, selected, y, widgetWidth) {
-    const w = widgetWidth - PAD * 2;
-    const h = 26;
-    const x0 = PAD;
-    const count = options.length;
-    const segW = w / count;
+export function drawSegmented(
+    canvasContext,
+    controls,
+    controlName,
+    options,
+    selectedValue,
+    controlY,
+    widgetWidth,
+    animationPosition = null,
+) {
+    const controlX = CONTROL_PADDING;
+    const controlWidth = widgetWidth - CONTROL_PADDING * 2;
+    const controlHeight = 26;
+    const segmentCount = options.length;
+    const segmentWidth = controlWidth / segmentCount;
 
-    ctx.beginPath();
-    ctx.roundRect(x0, y, w, h, 5);
-    ctx.fillStyle = "#252538";
-    ctx.fill();
-    ctx.strokeStyle = "#3a3a52";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(x0, y, w, h, 5);
-    ctx.stroke();
+    drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
 
-    for (let i = 0; i < count; i++) {
-        const sx = x0 + i * segW;
-        const sel = selected === options[i].value;
-        if (sel) {
-            ctx.beginPath();
-            ctx.roundRect(sx + 2, y + 2, segW - 4, h - 4, 4);
-            ctx.fillStyle = "#7c5cbf";
-            ctx.fill();
-        }
-        ctx.fillStyle = sel ? "#ffffff" : "#6e6e85";
-        ctx.font = sel ? "bold 11px sans-serif" : "11px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(options[i].label, sx + segW / 2, y + h / 2);
-    }
-    controls[name] = { x: x0, y, w, h, count, segW };
-}
-
-export function drawSlider(ctx, controls, name, value, y, widgetWidth) {
-    const val = Number(value) || 2.0;
-    const cy = y + 12;
-    const lx = PAD + SLIDER_TRACK_INSET;
-    const rx = widgetWidth - PAD - SLIDER_TRACK_INSET;
-    const trackW = rx - lx;
-
-    ctx.fillStyle = "#6e6e85";
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("1x", PAD + SLIDER_EDGE_LABEL_OFFSET, cy);
-    ctx.fillText("2x", widgetWidth - PAD - SLIDER_EDGE_LABEL_OFFSET, cy);
-
-    ctx.beginPath();
-    ctx.roundRect(lx, cy - 2, trackW, 4, 2);
-    ctx.fillStyle = "#1a1a2e";
-    ctx.fill();
-
-    const pct = Math.max(0, Math.min(1, (val - 1.0)));
-    if (pct > 0) {
-        ctx.beginPath();
-        ctx.roundRect(lx, cy - 2, trackW * pct, 4, 2);
-        ctx.fillStyle = "#7c5cbf";
-        ctx.globalAlpha = 0.7;
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
+    const selectedIndex = options.findIndex((option) => option.value === selectedValue);
+    const selectedPillIndex = animationPosition ?? selectedIndex;
+    if (selectedPillIndex >= 0) {
+        const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
+        drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
     }
 
-    const tx = lx + trackW * pct;
-    ctx.beginPath();
-    ctx.arc(tx, cy, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#9b7fd4";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(tx, cy, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
+    for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
+        const option = options[optionIndex];
+        const segmentX = controlX + optionIndex * segmentWidth;
+        const isSelected = selectedValue === option.value;
+        canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
+        canvasContext.font = "bold 12px sans-serif";
+        canvasContext.textAlign = "center";
+        canvasContext.textBaseline = "middle";
+        canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
+    }
 
-    controls[name] = { lx, rx, trackW, y, h: 24 };
+    controls[controlName] = {
+        left: controlX,
+        top: controlY,
+        width: controlWidth,
+        height: controlHeight,
+        count: segmentCount,
+        segmentWidth,
+    };
 }
 
-export function drawToggle(ctx, controls, name, value, y, widgetWidth) {
-    const cy = y + 14;
-    const trackW = 40;
-    const trackH = 20;
-    const trackX = (widgetWidth - trackW) / 2;
-    const isLandscape = value === "Landscape";
+export function drawPresetStack(
+    canvasContext,
+    controls,
+    controlName,
+    options,
+    selectedValue,
+    controlY,
+    widgetWidth,
+    animationPosition = null,
+) {
+    const controlX = CONTROL_PADDING;
+    const controlWidth = widgetWidth - CONTROL_PADDING * 2;
+    const rowHeight = 26;
+    const rowGap = 0;
+    const controlHeight = options.length * rowHeight;
 
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = !isLandscape ? "#e8e8f0" : "#6e6e85";
-    ctx.font = !isLandscape ? "bold 11px sans-serif" : "11px sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("Portrait", trackX - 8, cy);
+    drawInputFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
 
-    ctx.fillStyle = isLandscape ? "#e8e8f0" : "#6e6e85";
-    ctx.font = isLandscape ? "bold 11px sans-serif" : "11px sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("Landscape", trackX + trackW + 8, cy);
+    const selectedIndex = options.findIndex((option) => option.value === selectedValue);
+    const selectedPillIndex = animationPosition ?? selectedIndex;
+    if (selectedPillIndex >= 0) {
+        const selectedPillY = controlY + selectedPillIndex * rowHeight + 2;
+        drawSelectedPill(canvasContext, controlX + 2, selectedPillY, controlWidth - 4, rowHeight - 4, 4);
+    }
 
-    ctx.beginPath();
-    ctx.roundRect(trackX, cy - trackH / 2, trackW, trackH, trackH / 2);
-    ctx.fillStyle = isLandscape ? "#7c5cbf" : "#353548";
-    ctx.fill();
+    for (let optionIndex = 0; optionIndex < options.length; optionIndex++) {
+        const option = options[optionIndex];
+        const rowY = controlY + optionIndex * (rowHeight + rowGap);
+        const isSelected = selectedValue === option.value;
 
-    const thumbCX = isLandscape ? trackX + trackW - trackH / 2 : trackX + trackH / 2;
-    ctx.beginPath();
-    ctx.arc(thumbCX, cy, 7, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
+        canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
+        canvasContext.font = "bold 12px monospace";
+        canvasContext.textAlign = "center";
+        canvasContext.textBaseline = "middle";
+        canvasContext.fillText(option.label, controlX + controlWidth / 2, rowY + rowHeight / 2);
+    }
 
-    controls[name] = { x: 0, y, w: widgetWidth, h: 28 };
+    controls[controlName] = {
+        left: controlX,
+        top: controlY,
+        width: controlWidth,
+        height: controlHeight,
+        rowHeight,
+        rowGap,
+        options,
+    };
 }
 
-export function drawBatch(ctx, controls, name, value, y, widgetWidth) {
-    const w = widgetWidth - PAD * 2;
-    const h = 26;
-    const x0 = PAD;
+export function drawBatch(canvasContext, controls, controlName, value, controlY, widgetWidth) {
+    const controlX = CONTROL_PADDING;
+    const controlWidth = widgetWidth - CONTROL_PADDING * 2;
+    const controlHeight = 26;
+    const buttonWidth = controlHeight;
+    const valueBoxX = controlX + buttonWidth;
+    const valueBoxWidth = controlWidth - buttonWidth * 2;
 
-    ctx.beginPath();
-    ctx.roundRect(x0, y, w, h, 5);
-    ctx.fillStyle = "#252538";
-    ctx.fill();
-    ctx.strokeStyle = "#3a3a52";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(x0, y, w, h, 5);
-    ctx.stroke();
+    drawInputFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
 
-    ctx.fillStyle = "#6e6e85";
-    ctx.font = "bold 14px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("−", x0 + 15, y + h / 2);
-    ctx.fillText("+", x0 + w - 15, y + h / 2);
+    canvasContext.fillStyle = "#918da3";
+    canvasContext.font = "bold 14px sans-serif";
+    canvasContext.textAlign = "center";
+    canvasContext.textBaseline = "middle";
+    canvasContext.fillText("−", controlX + buttonWidth / 2, controlY + controlHeight / 2);
+    canvasContext.fillText("+", controlX + controlWidth - buttonWidth / 2, controlY + controlHeight / 2);
 
-    ctx.fillStyle = "#e8e8f0";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText(String(value), x0 + w / 2, y + h / 2);
+    canvasContext.fillStyle = "#e8e8f0";
+    canvasContext.font = "bold 12px monospace";
+    canvasContext.fillText(String(value), controlX + controlWidth / 2, controlY + controlHeight / 2);
 
-    controls[name] = { x: x0, y, w, h };
+    controls[controlName] = {
+        left: controlX,
+        top: controlY,
+        width: controlWidth,
+        height: controlHeight,
+        buttonWidth,
+        valueBox: { left: valueBoxX, top: controlY, width: valueBoxWidth, height: controlHeight },
+    };
 }
 
-export function drawSize(ctx, controls, widthVal, heightVal, y, widgetWidth) {
-    // Two equal-width boxes (W x H) with a central "×" separator (D-08).
-    // Box height is 26 — identical to drawSegmented/drawBatch — so toggling
-    // preset<->Custom causes no vertical layout shift (CUST-03).
-    const band = widgetWidth - PAD * 2;
-    const h = 26;
-    const x0 = PAD;
-    const gap = 24; // central gap holding the "×"; the registered box regions,
-    //                not this constant, are what hit-testing reads.
-    const boxW = (band - gap) / 2;
+export function drawSize(
+    canvasContext,
+    controls,
+    customWidthValue,
+    customHeightValue,
+    controlY,
+    widgetWidth,
+    labels = DEFAULT_SIZE_LABELS,
+) {
+    const controlX = CONTROL_PADDING;
+    const controlWidth = widgetWidth - CONTROL_PADDING * 2;
+    const inputHeight = 22;
+    const separatorWidth = 20;
+    const columnGap = 8;
+    const labelRowY = controlY;
+    const inputRowY = controlY + CUSTOM_ROW_HEIGHT;
+    const hintRowY = controlY + CUSTOM_ROW_HEIGHT * 2;
+    const inputY = inputRowY + (CUSTOM_ROW_HEIGHT - inputHeight) / 2;
+    const inputWidth = (controlWidth - columnGap * 2 - separatorWidth) / 2;
+    const widthInputX = controlX;
+    const separatorCenterX = widthInputX + inputWidth + columnGap + separatorWidth / 2;
+    const heightInputX = widthInputX + inputWidth + columnGap + separatorWidth + columnGap;
 
-    const boxes = [
-        { key: "sizeW", hint: "W", value: widthVal, x: x0 },
-        { key: "sizeH", hint: "H", value: heightVal, x: x0 + boxW + gap },
+    canvasContext.fillStyle = "#8d899f";
+    canvasContext.font = "10px sans-serif";
+    canvasContext.textAlign = "left";
+    canvasContext.textBaseline = "middle";
+    canvasContext.fillText(labels.width, widthInputX + 1, labelRowY + CUSTOM_ROW_HEIGHT - 7);
+    canvasContext.fillText(labels.height, heightInputX + 1, labelRowY + CUSTOM_ROW_HEIGHT - 7);
+
+    const inputBoxes = [
+        { key: "sizeW", value: customWidthValue, left: widthInputX },
+        { key: "sizeH", value: customHeightValue, left: heightInputX },
     ];
 
-    for (const box of boxes) {
-        ctx.beginPath();
-        ctx.roundRect(box.x, y, boxW, h, 5);
-        ctx.fillStyle = "#252538";
-        ctx.fill();
-        ctx.strokeStyle = "#3a3a52";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(box.x, y, boxW, h, 5);
-        ctx.stroke();
+    for (const inputBox of inputBoxes) {
+        drawInputFrame(canvasContext, inputBox.left, inputY, inputWidth, inputHeight, 5);
 
-        // faint W / H hint, left-inset inside the box
-        ctx.fillStyle = "#6e6e85";
-        ctx.font = "9px sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(box.hint, box.x + 6, y + h / 2);
+        canvasContext.fillStyle = "#e8e8f0";
+        canvasContext.font = "bold 12px monospace";
+        canvasContext.textAlign = "center";
+        canvasContext.textBaseline = "middle";
+        canvasContext.fillText(String(inputBox.value), inputBox.left + inputWidth / 2, inputY + inputHeight / 2);
 
-        // current value, centered, bold monospace
-        ctx.fillStyle = "#e8e8f0";
-        ctx.font = "bold 12px monospace";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(box.value), box.x + boxW / 2, y + h / 2);
-
-        controls[box.key] = { x: box.x, y, w: boxW, h };
+        controls[inputBox.key] = { left: inputBox.left, top: inputY, width: inputWidth, height: inputHeight };
     }
 
-    // central "×" glyph at the row midpoint
-    ctx.fillStyle = "#6e6e85";
-    ctx.font = "bold 14px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("×", x0 + band / 2, y + h / 2);
+    canvasContext.fillStyle = "#6e6e85";
+    canvasContext.font = "bold 14px sans-serif";
+    canvasContext.textAlign = "center";
+    canvasContext.textBaseline = "middle";
+    canvasContext.fillText("x", separatorCenterX, inputRowY + CUSTOM_ROW_HEIGHT / 2);
+
+    canvasContext.fillStyle = "#7f7a90";
+    canvasContext.font = "10px sans-serif";
+    canvasContext.textAlign = "left";
+    canvasContext.textBaseline = "middle";
+    canvasContext.fillText(labels.hint, widthInputX + 1, hintRowY + CUSTOM_ROW_HEIGHT / 2);
 }
 
-export function drawTargetInfo(ctx, ds, y, widgetWidth) {
-    const w = widgetWidth - PAD * 2;
-    const x0 = PAD;
-    ctx.beginPath();
-    ctx.roundRect(x0, y, w, 24, 5);
-    ctx.fillStyle = "#1a1a2e";
-    ctx.fill();
-    ctx.fillStyle = "#6e6e85";
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText("Target", x0 + 8, y + 12);
-    ctx.fillStyle = "#7c5cbf";
-    ctx.font = "bold 12px monospace";
-    ctx.textAlign = "right";
-    ctx.fillText(ds.targetWidth + " × " + ds.targetHeight, x0 + w - 8, y + 12);
-}
+export function drawOutputValues(canvasContext, outputState, node) {
+    canvasContext.font = "bold 13px monospace";
+    canvasContext.textAlign = "right";
+    canvasContext.textBaseline = "middle";
+    const labels = getOutputValueLabels(outputState);
 
-export function drawOutputValues(ctx, ds, node) {
-    ctx.font = "bold 13px monospace";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    const labels = getOutputValueLabels(ds);
+    for (let outputIndex = 0; outputIndex < labels.length; outputIndex++) {
+        if (!node.outputs[outputIndex]) continue;
+        const [labelX, labelY] = getOutputValueLabelPosition(node, outputIndex);
 
-    for (let i = 0; i < labels.length; i++) {
-        if (!node.outputs[i]) continue;
-        const [labelX, labelY] = getOutputValueLabelPosition(node, i);
-
-        ctx.fillStyle = PORT_COLORS[i];
-        ctx.fillText(labels[i], labelX, labelY);
+        canvasContext.fillStyle = PORT_COLORS[outputIndex];
+        canvasContext.fillText(labels[outputIndex], labelX, labelY);
     }
 }
