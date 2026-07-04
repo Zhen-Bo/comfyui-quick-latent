@@ -2,28 +2,24 @@
 
 [English](README.md) | [繁體中文](README_zhTW.md)
 
-A streamlined ComfyUI custom node for creating latent tensors from common resolution presets.
+A streamlined ComfyUI custom node for creating latent tensors from direct output-size presets.
 
-<table>
-  <tr>
-    <td><img src="docs/images/quick-latent-node.png" alt="Quick Latent node UI" /></td>
-    <td><img src="docs/images/quick-latent-workflow.png" alt="Quick Latent workflow example" /></td>
-  </tr>
-</table>
+Quick Latent lets you choose an orientation, ratio family, curated output size, or custom width and height, then outputs the matching width, height, latent tensor, and batch size.
 
-Quick Latent lets you choose a resolution tier, aspect ratio, orientation, scale factor, and batch size, then outputs the calculated width, height, scale, latent tensor, and batch size.
+## V2.0 Breaking Change
+
+V2.0 removes the scale factor control and the `SCALE` output. Selected dimensions are now the direct output size. Existing V1 workflows should be reselected after upgrading.
 
 ## Features
 
 | Feature | Description |
 | --- | --- |
-| Resolution presets | Choose from 1K, 2K, and 4K target sizes. |
-| Aspect ratios | Supports 1:1, 2:3, 3:4, 16:9, and 21:9. |
-| Orientation | Switch between landscape and portrait layouts. |
-| Scale factor | Generate 8-aligned latent dimensions from 1.0x to 2.0x downscale factors, rounded up. |
+| Direct presets | Choose explicit output sizes such as `1024 x 1536`, `1920 x 1080`, or `2048 x 2048`. |
+| Ratio families | Supports `1:1`, `2:3`, `3:4`, `16:9`, and `Custom`. |
+| Orientation | Switches labels and swaps preset/custom width and height between portrait and landscape. |
+| Custom size | Enter direct output width and height. Input values are preserved, clamped to `512` through `4096`, then rounded down to multiples of `8` for the actual output. |
 | Batch size | Create latent batches from 1 to 64. |
 | Custom UI | Uses a compact canvas UI inside the ComfyUI node. |
-| Outputs | Returns width, height, scale, latent, and batch size. |
 
 ## Installation
 
@@ -50,15 +46,14 @@ Add the `Quick Latent` node from the `QuickLatent` category.
 
 Use the node controls to select:
 
-- Resolution: `1K`, `2K`, or `4K`
-- Aspect ratio
-- Orientation
-- Scale factor
+- Orientation: `Portrait` or `Landscape`
+- Aspect ratio: `1:1`, `2:3`, `3:4`, `16:9`, or `Custom`
+- Preset resolution or custom width and height
 - Batch size
 
-The node returns a zero-filled latent tensor and the matching dimension values for downstream ComfyUI workflows. Output width and height are the actual aligned sampler dimensions. The UI target size is calculated from those aligned dimensions multiplied by the selected scale factor.
+The node returns a zero-filled latent tensor and matching dimension values for downstream ComfyUI workflows. Output width and height are the direct 8-aligned latent image dimensions used by the sampler.
 
-For the exact size formula, rounding behavior, and readable per-combination tables, see [Dimension Tables](docs/dimension-tables.md).
+For the full V2.0 preset table, see [Dimension Reference](docs/dimensions.md).
 
 ## Outputs
 
@@ -66,16 +61,8 @@ For the exact size formula, rounding behavior, and readable per-combination tabl
 | --- | --- | --- |
 | `OUTPUT_WIDTH` | `INT` | Actual 8-aligned latent image width. |
 | `OUTPUT_HEIGHT` | `INT` | Actual 8-aligned latent image height. |
-| `SCALE` | `FLOAT` | Selected scale factor. |
 | `LATENT` | `LATENT` | Zero-filled latent tensor. |
 | `BATCH_SIZE` | `INT` | Selected batch size. |
-
-## Roadmap
-
-- Add a `Custom` resolution mode
-- Allow direct editing of output width and height labels
-- Automatically switch to custom mode after manual dimension edits
-- Disable aspect ratio selection while custom dimensions are active
 
 ## License
 

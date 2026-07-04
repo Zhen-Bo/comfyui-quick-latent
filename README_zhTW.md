@@ -2,28 +2,24 @@
 
 [English](README.md) | [繁體中文](README_zhTW.md)
 
-一個精簡的 ComfyUI 自訂節點，用常用解析度預設快速建立 latent tensor。
+一個精簡的 ComfyUI 自訂節點，用常用直接輸出尺寸快速建立 latent tensor。
 
-<table>
-  <tr>
-    <td><img src="docs/images/quick-latent-node.png" alt="Quick Latent 節點介面" /></td>
-    <td><img src="docs/images/quick-latent-workflow.png" alt="Quick Latent 工作流程範例" /></td>
-  </tr>
-</table>
+Quick Latent 可以選擇方向、比例家族、常用輸出尺寸或自訂寬高，並輸出對應的寬度、高度、latent tensor 和批次大小。
 
-Quick Latent 可以選擇解析度等級、長寬比、方向、縮放倍率和批次大小，並輸出計算後的寬度、高度、縮放倍率、latent tensor 和批次大小。
+## V2.0 Breaking Change
+
+V2.0 移除縮放倍率控制和 `SCALE` 輸出。使用者選擇的尺寸現在就是直接輸出尺寸。升級後舊版 V1 workflow 需要重新選擇節點設定。
 
 ## 功能
 
 | 功能 | 說明 |
 | --- | --- |
-| 解析度預設 | 可選擇 1K、2K、4K 目標尺寸。 |
-| 長寬比 | 支援 1:1、2:3、3:4、16:9、21:9。 |
-| 方向 | 可切換橫向與直向。 |
-| 縮放倍率 | 以 1.0x 到 2.0x 的 downscale factor 產生 8 對齊並向上取整的 latent 尺寸。 |
+| 直接尺寸預設 | 可選擇明確輸出尺寸，例如 `1024 x 1536`、`1920 x 1080` 或 `2048 x 2048`。 |
+| 比例家族 | 支援 `1:1`、`2:3`、`3:4`、`16:9` 和 `Custom`。 |
+| 方向 | 切換直向與橫向時，比例標籤和 preset/custom 寬高會一起交換。 |
+| 自訂尺寸 | 直接輸入輸出寬高。輸入值會保留，範圍限制在 `512` 到 `4096`，實際輸出時向下對齊到 `8` 的倍數。 |
 | 批次大小 | 可建立 1 到 64 張的 latent batch。 |
 | 自訂介面 | 在 ComfyUI 節點內使用精簡的 canvas UI。 |
-| 輸出 | 回傳寬度、高度、縮放倍率、latent 和批次大小。 |
 
 ## 安裝
 
@@ -50,15 +46,14 @@ git clone https://github.com/Zhen-Bo/comfyui-quick-latent.git
 
 在節點中選擇：
 
-- Resolution：`1K`、`2K` 或 `4K`
-- Aspect Ratio
-- Orientation
-- Scale Factor
+- Orientation：`Portrait` 或 `Landscape`
+- Aspect Ratio：`1:1`、`2:3`、`3:4`、`16:9` 或 `Custom`
+- Preset resolution 或自訂寬高
 - Batch Size
 
-節點會回傳一個 zero-filled latent tensor，以及可接到下游 ComfyUI workflow 的對應尺寸數值。Output width / height 是實際對齊後送進 sampler 的尺寸；UI 的 target size 則由對齊後尺寸乘上選擇的 scale factor 得出。
+節點會回傳一個 zero-filled latent tensor，以及可接到下游 ComfyUI workflow 的對應尺寸數值。Output width / height 是實際 8 對齊後送進 sampler 的 latent image 尺寸。
 
-完整尺寸公式、rounding 行為與每個排列組合的 Markdown 對照表，請參考 [尺寸對照表](docs/dimension-tables.md)。
+完整 V2.0 preset 尺寸表請參考 [尺寸參考](docs/dimensions.md)。
 
 ## 輸出
 
@@ -66,16 +61,8 @@ git clone https://github.com/Zhen-Bo/comfyui-quick-latent.git
 | --- | --- | --- |
 | `OUTPUT_WIDTH` | `INT` | 實際 8 對齊後的 latent image 寬度。 |
 | `OUTPUT_HEIGHT` | `INT` | 實際 8 對齊後的 latent image 高度。 |
-| `SCALE` | `FLOAT` | 選擇的縮放倍率。 |
 | `LATENT` | `LATENT` | Zero-filled latent tensor。 |
 | `BATCH_SIZE` | `INT` | 選擇的批次大小。 |
-
-## Roadmap
-
-- 新增 `Custom` 解析度模式
-- 讓 output width / height label 可以直接點選編輯
-- 手動編輯尺寸後，自動切換為 custom mode
-- 使用 custom dimensions 時，停用並灰化 aspect ratio 選項
 
 ## 授權
 

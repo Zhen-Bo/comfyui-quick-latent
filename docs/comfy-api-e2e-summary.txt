@@ -1,8 +1,0 @@
-run_at=2026-06-25T00:56:02
-comfy_api=http://127.0.0.1:8188
-alignment=8
-rounding=ceil
-total_cases=330
-failures=0
-rounded_cases=238
-elapsed_seconds=88.4
