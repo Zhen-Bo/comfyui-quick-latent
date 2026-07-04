@@ -1,27 +1,47 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 
 import {
     MIN_WIDTH,
+    PRESET_RESOLUTIONS,
+    ASPECT_RATIOS,
+    buildPresetOptions,
     buildRatioOptions,
-    calculateDimensions,
-    getTargetDimensions,
     calculateCustomDimensions,
-    getCustomTargetDimensions,
+    calculateDimensions,
+    clampCustomDimension,
+    floorToAlignment,
+    orientDimensions,
 } from "../js/config.js";
 import {
-    getDefaultOutputSlotLocalPosition,
+    getBatchClickAction,
     getControlStartY,
+    getDefaultOutputSlotLocalPosition,
+    getOutputColumnReservedWidth,
     getOutputRowsHeight,
     getOutputValueLabelPosition,
-    getQuickLatentMinWidth,
-    getQuickLatentMinHeight,
     getOutputValueLabels,
-    getOutputColumnReservedWidth,
-    getBatchClickAction,
+    getPresetStackClickValue,
+    getQuickLatentMinHeight,
+    getQuickLatentMinWidth,
     getSizeBoxClickAction,
     normalizeOutputSlots,
 } from "../js/layout.js";
+
+const EXPECTED_PRESET_LABELS = {
+    Landscape: {
+        "1:1": ["1024 x 1024", "1536 x 1536", "2048 x 2048"],
+        "2:3": ["1536 x 1024", "1920 x 1280", "2304 x 1536"],
+        "3:4": ["1536 x 1152", "1792 x 1344", "2048 x 1536"],
+        "16:9": ["1536 x 864", "1920 x 1080", "2560 x 1440"],
+    },
+    Portrait: {
+        "1:1": ["1024 x 1024", "1536 x 1536", "2048 x 2048"],
+        "2:3": ["1024 x 1536", "1280 x 1920", "1536 x 2304"],
+        "3:4": ["1152 x 1536", "1344 x 1792", "1536 x 2048"],
+        "16:9": ["864 x 1536", "1080 x 1920", "1440 x 2560"],
+    },
+};
 
 test("default output slot positions track node width without output.pos", () => {
     const slotA = getDefaultOutputSlotLocalPosition({ size: [370, 320] }, 0);
@@ -35,7 +55,7 @@ test("output value labels align to LiteGraph default output rows", () => {
     const node = { size: [370, 320] };
 
     assert.deepEqual(getOutputValueLabelPosition(node, 0), [349, 14]);
-    assert.deepEqual(getOutputValueLabelPosition(node, 4), [349, 94]);
+    assert.deepEqual(getOutputValueLabelPosition(node, 3), [349, 74]);
 });
 
 test("default output slot positions honor LiteGraph slot_start_y", () => {
@@ -48,15 +68,15 @@ test("default output slot positions honor LiteGraph slot_start_y", () => {
 });
 
 test("output rows keep their LiteGraph height", () => {
-    assert.equal(getOutputRowsHeight(5), 106);
+    assert.equal(getOutputRowsHeight(4), 86);
 });
 
 test("custom controls share vertical space with output labels", () => {
     assert.equal(getControlStartY(), 6);
 });
 
-test("node minimum height fits the visible controls without reserving blank output-only space", () => {
-    assert.equal(getQuickLatentMinHeight(5), 300);
+test("node minimum height fits the V2 controls", () => {
+    assert.equal(getQuickLatentMinHeight(4), 258);
 });
 
 test("node minimum width does not grow after horizontal resize", () => {
@@ -64,124 +84,197 @@ test("node minimum width does not grow after horizontal resize", () => {
     assert.equal(MIN_WIDTH, getQuickLatentMinWidth());
 });
 
-test("latent output label uses compact text", () => {
-    const labels = getOutputValueLabels({ width: 512, height: 512, scale: 2, batch: 1 });
+test("latent output labels use compact V2 text", () => {
+    const labels = getOutputValueLabels({ width: 1024, height: 1536, batch: 2 });
 
-    assert.deepEqual(labels, ["512", "512", "2.00", "LAT", "1"]);
+    assert.deepEqual(labels, ["1024", "1536", "LAT", "2"]);
 });
 
 test("output column reserves compact width", () => {
     assert.equal(getOutputColumnReservedWidth(), 53);
 });
 
+test("V2 preset and ratio options expose the curated choices", () => {
+    assert.deepEqual(PRESET_RESOLUTIONS, ["1024", "1536", "2048"]);
+    assert.deepEqual(ASPECT_RATIOS, ["1:1", "2:3", "3:4", "16:9", "Custom"]);
+});
+
 test("aspect ratio labels reflect the effective orientation", () => {
     assert.deepEqual(
         buildRatioOptions("Landscape").map((option) => option.label),
-        ["1:1", "3:2", "4:3", "16:9", "21:9"],
+        ["1:1", "3:2", "4:3", "16:9", "Custom"],
     );
     assert.deepEqual(
         buildRatioOptions("Portrait").map((option) => option.label),
-        ["1:1", "2:3", "3:4", "9:16", "9:21"],
+        ["1:1", "2:3", "3:4", "9:16", "Custom"],
     );
 });
 
-test("4K 3:4 portrait at 2x previews the exact aligned sampler size", () => {
+test("orientation swaps dimensions without changing ratio family", () => {
+    assert.deepEqual(orientDimensions(1024, 1536, "Landscape"), [1536, 1024]);
+    assert.deepEqual(orientDimensions(1536, 864, "Portrait"), [864, 1536]);
+});
+
+test("frontend preset calculation mirrors V2 direct-size table", () => {
     assert.deepEqual(
-        calculateDimensions("4K", "3:4", "Portrait", 2.0),
-        { width: 1440, height: 1920 },
+        calculateDimensions("1024", "2:3", "Portrait"),
+        { width: 1024, height: 1536 },
+    );
+    assert.deepEqual(
+        calculateDimensions("1536", "3:4", "Landscape"),
+        { width: 1792, height: 1344 },
+    );
+    assert.deepEqual(
+        calculateDimensions("2048", "16:9", "Portrait"),
+        { width: 1440, height: 2560 },
     );
 });
 
-test("target preview is derived from aligned sampler size times scale", () => {
+test("preset option labels show actual output dimensions", () => {
     assert.deepEqual(
-        calculateDimensions("4K", "1:1", "Landscape", 1.5),
-        { width: 1440, height: 1440 },
-    );
-    assert.deepEqual(
-        getTargetDimensions("4K", "1:1", "Landscape", 1.5),
-        { width: 2160, height: 2160 },
+        buildPresetOptions("2:3", "Landscape").map((option) => option.label),
+        ["1536 x 1024", "1920 x 1280", "2304 x 1536"],
     );
 });
 
-test("frontend alignment rounds up to the next 8-pixel boundary", () => {
-    assert.deepEqual(
-        calculateDimensions("4K", "1:1", "Landscape", 1.2),
-        { width: 1800, height: 1800 },
-    );
+for (const orientation of ["Landscape", "Portrait"]) {
+    for (const ratio of ["1:1", "2:3", "3:4", "16:9"]) {
+        test(`${orientation} ${ratio} preset labels show explicit V2 output sizes`, () => {
+            assert.deepEqual(
+                buildPresetOptions(ratio, orientation).map((option) => option.label),
+                EXPECTED_PRESET_LABELS[orientation][ratio],
+            );
+        });
+    }
+}
+
+test("custom input values clamp to schema bounds without 8px alignment", () => {
+    assert.equal(clampCustomDimension(100), 512);
+    assert.equal(clampCustomDimension(513), 513);
+    assert.equal(clampCustomDimension(4095), 4095);
+    assert.equal(clampCustomDimension(9000), 4096);
+    assert.equal(clampCustomDimension("not-a-number"), 1024);
 });
 
-test("target preview does not undershoot the selected preset target", () => {
-    assert.deepEqual(
-        calculateDimensions("1K", "1:1", "Landscape", 1.1),
-        { width: 936, height: 936 },
-    );
-    assert.deepEqual(
-        getTargetDimensions("1K", "1:1", "Landscape", 1.1),
-        { width: 1030, height: 1030 },
-    );
+test("custom output dimensions round down to the nearest multiple of 8", () => {
+    assert.equal(floorToAlignment(1028), 1024);
+    assert.equal(floorToAlignment(1031), 1024);
+    assert.equal(floorToAlignment(1032), 1032);
+});
+
+test("client custom calc clamps each axis to [512, 4096] like the backend", () => {
+    assert.deepEqual(calculateCustomDimensions(100, 100), { width: 512, height: 512 });
+    assert.deepEqual(calculateCustomDimensions(9000, 9000), { width: 4096, height: 4096 });
+    assert.deepEqual(calculateCustomDimensions(513, 513), { width: 512, height: 512 });
+    assert.deepEqual(calculateCustomDimensions(1028, 1031), { width: 1024, height: 1024 });
+    assert.deepEqual(calculateCustomDimensions(1032, 1032), { width: 1032, height: 1032 });
+    assert.deepEqual(calculateCustomDimensions(5000, 300), { width: 4096, height: 512 });
 });
 
 test("batch click ignores blank space outside the visible control", () => {
-    const control = { x: 10, y: 100, w: 300, h: 26 };
+    const control = { x: 10, y: 100, w: 300, h: 26, buttonW: 26 };
 
     assert.equal(getBatchClickAction(control, 9, 113), null);
     assert.equal(getBatchClickAction(control, 311, 113), null);
     assert.equal(getBatchClickAction(control, 320, 113), null);
 });
 
-test("batch click only changes value inside the visible minus and plus zones", () => {
-    const control = { x: 10, y: 100, w: 300, h: 26 };
+test("batch click maps square buttons and center value box to actions", () => {
+    const control = {
+        x: 10,
+        y: 100,
+        w: 300,
+        h: 26,
+        buttonW: 26,
+        valueBox: { x: 40, y: 103, w: 240, h: 20 },
+    };
 
     assert.equal(getBatchClickAction(control, 20, 113), "decrement");
-    assert.equal(getBatchClickAction(control, 160, 113), null);
+    assert.equal(getBatchClickAction(control, 160, 113), "edit");
+    assert.equal(getBatchClickAction(control, 270, 113), "edit");
     assert.equal(getBatchClickAction(control, 300, 113), "increment");
+    assert.equal(getBatchClickAction(control, 38, 113), null);
 });
 
-test("normalizing output slots removes stale manual positions and hides native text", () => {
+test("preset-stack hit-test maps contiguous rows to preset values", () => {
+    const control = {
+        x: 10,
+        y: 100,
+        w: 300,
+        h: 72,
+        rowH: 24,
+        gap: 0,
+        options: [
+            { value: "1024" },
+            { value: "1536" },
+            { value: "2048" },
+        ],
+    };
+
+    assert.equal(getPresetStackClickValue(control, 20, 110), "1024");
+    assert.equal(getPresetStackClickValue(control, 20, 126), "1536");
+    assert.equal(getPresetStackClickValue(control, 20, 150), "2048");
+    assert.equal(getPresetStackClickValue(control, 20, 171), "2048");
+    assert.equal(getPresetStackClickValue(control, 20, 172), null);
+    assert.equal(getPresetStackClickValue(control, 320, 110), null);
+});
+
+test("size-box hit-test maps clicks to the width or height box; the central gap returns null", () => {
+    const controls = {
+        sizeW: { x: 10, y: 122, w: 140, h: 26 },
+        sizeH: { x: 160, y: 122, w: 140, h: 26 },
+    };
+    assert.equal(getSizeBoxClickAction(controls, 20, 130), "sizeW");
+    assert.equal(getSizeBoxClickAction(controls, 170, 130), "sizeH");
+    assert.equal(getSizeBoxClickAction(controls, 155, 130), null);
+    assert.equal(getSizeBoxClickAction(controls, 20, 200), null);
+});
+
+test("normalizing output slots removes stale manual positions, stale slots, and native text", () => {
     const outputs = [
         { name: "WIDTH", localized_name: "WIDTH", type: "INT", links: [1], pos: [370, 30] },
         { name: "HEIGHT", localized_name: "HEIGHT", type: "INT", links: null, pos: new Float32Array([370, 60]) },
+        { name: "LATENT", localized_name: "LATENT", type: "LATENT" },
+        { name: "BATCH", localized_name: "BATCH", type: "INT" },
+        { name: "SCALE", localized_name: "SCALE", type: "FLOAT", links: [99] },
     ];
 
     normalizeOutputSlots(outputs);
 
     assert.deepEqual(outputs, [
-        { name: "", localized_name: "", type: "INT", links: [1] },
-        { name: "", localized_name: "", type: "INT", links: null },
+        {
+            name: "",
+            localized_name: "",
+            type: "INT",
+            links: [1],
+            color: "#8a8795",
+            color_off: "#8a8795",
+            color_on: "#4fc3f7",
+        },
+        {
+            name: "",
+            localized_name: "",
+            type: "INT",
+            links: null,
+            color: "#8a8795",
+            color_off: "#8a8795",
+            color_on: "#ffb74d",
+        },
+        {
+            name: "",
+            localized_name: "",
+            type: "LATENT",
+            color: "#8a8795",
+            color_off: "#8a8795",
+            color_on: "#ff69b4",
+        },
+        {
+            name: "",
+            localized_name: "",
+            type: "INT",
+            color: "#8a8795",
+            color_off: "#8a8795",
+            color_on: "#9a7bdc",
+        },
     ]);
-});
-
-// --- Custom resolution mode (Phase 5, CUST-01…06) ---
-// These values are copied from tests/test_custom_resolution.py so the client
-// mirror stays byte-for-byte identical to nodes.py calculate_custom_dimensions
-// (D-01/D-13): clamp each axis to [512, 4096] then round8(value / scale),
-// with NO orientation swap (the frontend owns the swap, D-06).
-
-test("client custom calc mirrors nodes.py: entered size IS the output (round8, no scale divide)", () => {
-    assert.deepEqual(calculateCustomDimensions(2048, 1024), { width: 2048, height: 1024 });
-    assert.deepEqual(calculateCustomDimensions(1024, 1024), { width: 1024, height: 1024 });
-    assert.deepEqual(calculateCustomDimensions(1920, 1080), { width: 1920, height: 1080 });
-});
-
-test("client custom calc clamps each axis to [512, 4096] like the backend", () => {
-    assert.deepEqual(calculateCustomDimensions(100, 100), { width: 512, height: 512 });
-    assert.deepEqual(calculateCustomDimensions(9000, 9000), { width: 4096, height: 4096 });
-    assert.deepEqual(calculateCustomDimensions(513, 513), { width: 520, height: 520 });
-    assert.deepEqual(calculateCustomDimensions(5000, 300), { width: 4096, height: 512 });
-});
-
-test("custom target is the entered output times scale (D-09 revised)", () => {
-    // type 512 @ scale 2 -> output 512 -> target 512 * 2 = 1024 (D-09)
-    assert.deepEqual(getCustomTargetDimensions(512, 512, 2.0), { width: 1024, height: 1024 });
-});
-
-test("size-box hit-test maps clicks to the width or height box; the central gap returns null", () => {
-    const controls = {
-        sizeW: { x: 10, y: 100, w: 140, h: 26 },
-        sizeH: { x: 160, y: 100, w: 140, h: 26 },
-    };
-    assert.equal(getSizeBoxClickAction(controls, 20, 110), "sizeW");
-    assert.equal(getSizeBoxClickAction(controls, 170, 110), "sizeH");
-    assert.equal(getSizeBoxClickAction(controls, 155, 110), null); // central × gap
-    assert.equal(getSizeBoxClickAction(controls, 20, 200), null); // wrong y
 });
