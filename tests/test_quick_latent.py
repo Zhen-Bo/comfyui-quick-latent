@@ -21,7 +21,11 @@ class TestQuickLatentInputTypes:
 
     def test_aspect_ratio_combo(self):
         inputs = QuickLatent.INPUT_TYPES()["required"]
-        assert inputs["aspect_ratio"] == (["1:1", "2:3", "3:4", "16:9", "Custom"],)
+        assert inputs["aspect_ratio"] == (["1:1", "2:3", "3:4", "16:9"],)
+
+    def test_orientation_combo(self):
+        inputs = QuickLatent.INPUT_TYPES()["required"]
+        assert inputs["orientation"] == (["Landscape", "Portrait", "Custom"],)
 
     def test_scale_factor_is_removed(self):
         inputs = QuickLatent.INPUT_TYPES()["required"]
@@ -30,6 +34,27 @@ class TestQuickLatentInputTypes:
     def test_batch_size_int(self):
         inputs = QuickLatent.INPUT_TYPES()["required"]
         assert inputs["batch_size"] == ("INT", {"default": 1, "min": 1, "max": 64})
+
+    def test_aspect_ratio_ignored_under_custom_orientation(self):
+        node = QuickLatent()
+        first = node.generate(
+            preset_resolution="1024",
+            aspect_ratio="1:1",
+            orientation="Custom",
+            batch_size=1,
+            custom_width=2048,
+            custom_height=1024,
+        )
+        second = node.generate(
+            preset_resolution="1024",
+            aspect_ratio="16:9",
+            orientation="Custom",
+            batch_size=1,
+            custom_width=2048,
+            custom_height=1024,
+        )
+        assert first[0:2] == second[0:2]
+        assert first[0:2] == (2048, 1024)
 
 
 class TestBatchSizeClamp:

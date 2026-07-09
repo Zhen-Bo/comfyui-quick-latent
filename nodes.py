@@ -28,7 +28,7 @@ PRESET_RESOLUTION_TABLE = {
 }
 
 PRESET_RESOLUTIONS = ["1024", "1536", "2048"]
-ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "Custom"]
+ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9"]
 DIMENSION_ALIGNMENT = 8
 
 CUSTOM_DIMENSION_MIN = 512
@@ -85,7 +85,7 @@ class QuickLatent:
             "required": {
                 "preset_resolution": (PRESET_RESOLUTIONS,),
                 "aspect_ratio": (ASPECT_RATIOS,),
-                "orientation": (["Landscape", "Portrait"],),
+                "orientation": (["Landscape", "Portrait", "Custom"],),
                 "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN, "max": BATCH_SIZE_MAX}),
                 "custom_width": (
                     "INT",
@@ -115,7 +115,7 @@ class QuickLatent:
         """Generate a zero-filled latent tensor at the selected output size."""
         batch_size = clamp_batch_size(batch_size)
 
-        if aspect_ratio == "Custom":
+        if orientation == "Custom":
             width, height = calculate_custom_dimensions(custom_width, custom_height)
         else:
             width, height = calculate_preset_dimensions(preset_resolution, aspect_ratio, orientation)
