@@ -61,8 +61,8 @@ class TestCustomGenerateIntegration:
         node = QuickLatent()
         result = node.generate(
             preset_resolution="1024",
-            aspect_ratio="Custom",
-            orientation="Landscape",
+            aspect_ratio="1:1",
+            orientation="Custom",
             batch_size=1,
             custom_width=2048,
             custom_height=1024,
@@ -79,8 +79,8 @@ class TestCustomGenerateIntegration:
         node = QuickLatent()
         width, height, latent, batch = node.generate(
             preset_resolution="1024",
-            aspect_ratio="Custom",
-            orientation="Landscape",
+            aspect_ratio="1:1",
+            orientation="Custom",
             batch_size=1,
             custom_width=2048,
             custom_height=1024,

@@ -20,7 +20,7 @@ from tests.preset_expectations import EXPECTED_LANDSCAPE_PRESETS, EXPECTED_PORTR
 
 class TestPresetResolutionTable:
     def test_has_curated_v2_ratio_families(self):
-        assert ASPECT_RATIOS == ["1:1", "2:3", "3:4", "16:9", "Custom"]
+        assert ASPECT_RATIOS == ["1:1", "2:3", "3:4", "16:9"]
         assert PRESET_RESOLUTIONS == ["1024", "1536", "2048"]
 
     def test_table_contains_only_non_custom_ratios(self):

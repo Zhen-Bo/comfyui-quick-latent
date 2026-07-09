@@ -4,13 +4,16 @@ import assert from "node:assert/strict";
 import {
     PRESET_RESOLUTIONS,
     ASPECT_RATIOS,
+    ORIENTATIONS,
     alignDownToMultiple,
     buildPresetOptions,
     buildRatioOptions,
     calculateCustomDimensions,
     calculatePresetDimensions,
+    normalizeAspectRatio,
     normalizeBatchSizeValue,
     normalizeCustomDimensionValue,
+    normalizeOrientation,
     orientDimensions,
 } from "../js/config.js";
 
@@ -31,33 +34,31 @@ const EXPECTED_PRESET_LABELS = {
 
 test("V2 preset and ratio options expose the curated choices", () => {
     assert.deepEqual(PRESET_RESOLUTIONS, ["1024", "1536", "2048"]);
-    assert.deepEqual(ASPECT_RATIOS, ["1:1", "2:3", "3:4", "16:9", "Custom"]);
+    assert.deepEqual(ASPECT_RATIOS, ["1:1", "2:3", "3:4", "16:9"]);
 });
 
 test("aspect ratio labels reflect the effective orientation", () => {
     assert.deepEqual(
         buildRatioOptions("Landscape").map((option) => option.label),
-        ["1:1", "3:2", "4:3", "16:9", "Custom"],
+        ["1:1", "3:2", "4:3", "16:9"],
     );
     assert.deepEqual(
         buildRatioOptions("Portrait").map((option) => option.label),
-        ["1:1", "2:3", "3:4", "9:16", "Custom"],
+        ["1:1", "2:3", "3:4", "9:16"],
     );
 });
 
-test("aspect ratio custom label can be localized without changing option values", () => {
-    const options = buildRatioOptions("Portrait", "自訂");
+test("orientation options include Custom as the third value", () => {
+    assert.deepEqual(ORIENTATIONS, ["Landscape", "Portrait", "Custom"]);
+});
 
-    assert.deepEqual(
-        options,
-        [
-            { label: "1:1", value: "1:1" },
-            { label: "2:3", value: "2:3" },
-            { label: "3:4", value: "3:4" },
-            { label: "9:16", value: "16:9" },
-            { label: "自訂", value: "Custom" },
-        ],
-    );
+test("stale pre-v2.1 Custom aspect ratio coerces to 1:1", () => {
+    assert.equal(normalizeAspectRatio("Custom"), "1:1");
+    assert.equal(normalizeAspectRatio("garbage"), "1:1");
+});
+
+test("Custom orientation passes through normalization", () => {
+    assert.equal(normalizeOrientation("Custom"), "Custom");
 });
 
 test("orientation swaps dimensions without changing ratio family", () => {
