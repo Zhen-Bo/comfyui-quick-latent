@@ -51,6 +51,7 @@ function setupQuickLatentNode(node, translate) {
     const orientationOptions = [
         { label: translate("portrait"), value: "Portrait" },
         { label: translate("landscape"), value: "Landscape" },
+        { label: translate("custom"), value: "Custom" },
     ];
     const customSizeLabels = {
         width: translate("width"),
@@ -64,7 +65,7 @@ function setupQuickLatentNode(node, translate) {
     normalizeOutputSlots(node.outputs);
 
     let widgetState = readWidgetState(widgets);
-    let ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
+    let ratioOptions = buildRatioOptions(widgetState.orientation);
     const controls = {};
     const outputState = { outputWidth: 0, outputHeight: 0, batchSize: 1 };
     const outputCount = node.outputs?.length || 4;
@@ -79,7 +80,7 @@ function setupQuickLatentNode(node, translate) {
     }
 
     function updateOutputState() {
-        const dimensions = widgetState.aspectRatio === "Custom"
+        const dimensions = widgetState.orientation === "Custom"
             ? calculateCustomDimensions(widgetState.customWidth, widgetState.customHeight)
             : calculatePresetDimensions(
                 widgetState.presetResolution,
@@ -131,17 +132,18 @@ function setupQuickLatentNode(node, translate) {
             y,
             controlAreaWidth,
             selectionAnimations.position("ratio"),
+            widgetState.orientation === "Custom",
         );
         y += 32;
 
         drawLabel(
             ctx,
-            widgetState.aspectRatio === "Custom" ? translate("customSize") : translate("presetResolution"),
+            widgetState.orientation === "Custom" ? translate("customSize") : translate("presetResolution"),
             y + 8,
             controlAreaWidth,
         );
         y += 18;
-        if (widgetState.aspectRatio === "Custom") {
+        if (widgetState.orientation === "Custom") {
             drawSize(ctx, controls, widgetState.customWidth, widgetState.customHeight, y, controlAreaWidth, customSizeLabels);
         } else {
             drawPresetStack(
@@ -176,28 +178,25 @@ function setupQuickLatentNode(node, translate) {
             if (nextOrientation !== widgetState.orientation) {
                 selectionAnimations.start("orient", orientationOptions, widgetState.orientation, nextOrientation);
                 widgetState.orientation = nextOrientation;
-                ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
-                if (widgetState.aspectRatio === "Custom") {
-                    const previousCustomWidth = widgetState.customWidth;
-                    widgetState.customWidth = widgetState.customHeight;
-                    widgetState.customHeight = previousCustomWidth;
-                }
+                ratioOptions = buildRatioOptions(widgetState.orientation);
                 syncHiddenWidgetsAndRecalculate();
             }
             return true;
         }
 
-        const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, pointerX, pointerY);
-        if (nextRatio) {
-            if (nextRatio !== widgetState.aspectRatio) {
-                selectionAnimations.start("ratio", ratioOptions, widgetState.aspectRatio, nextRatio);
+        if (widgetState.orientation !== "Custom") {
+            const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, pointerX, pointerY);
+            if (nextRatio) {
+                if (nextRatio !== widgetState.aspectRatio) {
+                    selectionAnimations.start("ratio", ratioOptions, widgetState.aspectRatio, nextRatio);
+                }
+                widgetState.aspectRatio = nextRatio;
+                syncHiddenWidgetsAndRecalculate();
+                return true;
             }
-            widgetState.aspectRatio = nextRatio;
-            syncHiddenWidgetsAndRecalculate();
-            return true;
         }
 
-        if (widgetState.aspectRatio === "Custom") {
+        if (widgetState.orientation === "Custom") {
             const sizeAction = getSizeBoxClickAction(controls, pointerX, pointerY);
             if (sizeAction) {
                 const isWidth = sizeAction === "sizeW";
@@ -263,7 +262,7 @@ function setupQuickLatentNode(node, translate) {
         normalizeOutputSlots(this.outputs);
         setTimeout(() => {
             widgetState = readWidgetState(widgets);
-            ratioOptions = buildRatioOptions(widgetState.orientation, translate("custom"));
+            ratioOptions = buildRatioOptions(widgetState.orientation);
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
             syncHiddenWidgetsAndRecalculate();

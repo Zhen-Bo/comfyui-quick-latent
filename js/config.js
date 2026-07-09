@@ -22,11 +22,11 @@ export const PRESET_RESOLUTION_TABLE = {
 };
 
 export const PRESET_RESOLUTIONS = ["1024", "1536", "2048"];
-export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9", "Custom"];
-export const ORIENTATIONS = ["Landscape", "Portrait"];
+export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9"];
+export const ORIENTATIONS = ["Landscape", "Portrait", "Custom"];
 export const RATIO_LABELS = {
-    Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9", Custom: "Custom" },
-    Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16", Custom: "Custom" },
+    Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9" },
+    Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16" },
 };
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
 export const MIN_WIDTH = 370;
@@ -65,9 +65,9 @@ export function calculateCustomDimensions(customWidth, customHeight) {
     };
 }
 
-export function buildRatioOptions(orientation, customLabel = "Custom") {
+export function buildRatioOptions(orientation) {
     return ASPECT_RATIOS.map((ratio) => ({
-        label: ratio === "Custom" ? customLabel : RATIO_LABELS[orientation]?.[ratio] || ratio,
+        label: RATIO_LABELS[orientation]?.[ratio] || ratio,
         value: ratio,
     }));
 }

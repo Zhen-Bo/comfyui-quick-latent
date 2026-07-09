@@ -57,37 +57,62 @@ test("canvas controls expose and select the full curated preset matrix", async (
     }
 });
 
-test("custom size swaps width and height when orientation changes", async ({ page }) => {
+test("custom W/H are preserved, not swapped, on orientation change", async ({ page }) => {
     await openHarness(page);
-    const initialHeight = (await getState(page)).computeSize[1];
 
-    await clickDrawnText(page, "Custom", { minY: 70, maxY: 100 });
-    expect((await getState(page)).computeSize[1]).toBe(initialHeight);
+    await clickDrawnText(page, "Custom", { minY: 20, maxY: 50 });
+    let state = await getState(page);
+    expect(state.widgets.orientation).toBe("Custom");
 
     await editCustomSizeField(page, "width", 2048);
     await editCustomSizeField(page, "height", 3120);
 
-    let state = await getState(page);
-    expect(state.widgets.aspect_ratio).toBe("Custom");
+    state = await getState(page);
     expect(state.widgets.custom_width).toBe(2048);
     expect(state.widgets.custom_height).toBe(3120);
 
     await clickDrawnText(page, "Portrait", { minY: 20, maxY: 50 });
     state = await getState(page);
     expect(state.widgets.orientation).toBe("Portrait");
-    expect(state.widgets.custom_width).toBe(3120);
-    expect(state.widgets.custom_height).toBe(2048);
-    expect(state.drawnText.map((item) => item.text)).toEqual(expect.arrayContaining(["3120", "2048"]));
-
-    await clickDrawnText(page, "Landscape", { minY: 20, maxY: 50 });
-    state = await getState(page);
-    expect(state.widgets.orientation).toBe("Landscape");
     expect(state.widgets.custom_width).toBe(2048);
     expect(state.widgets.custom_height).toBe(3120);
+    expect(state.drawnText.map((item) => item.text)).toEqual(
+        expect.arrayContaining(presetLabels.Portrait["1:1"]),
+    );
+});
+
+test("selecting Custom orientation locks the ratio bar (clicks ignored)", async ({ page }) => {
+    await openHarness(page);
+
+    await clickDrawnText(page, "Custom", { minY: 20, maxY: 50 });
+    expect((await getState(page)).widgets.orientation).toBe("Custom");
+
+    // While Custom is active the ratio bar is locked; buildRatioOptions("Custom")
+    // renders the raw ratio keys (no orientation label map), so target "2:3" directly.
+    await clickDrawnText(page, "2:3", { minY: 70, maxY: 100 });
+    expect((await getState(page)).widgets.aspect_ratio).toBe("1:1");
+});
+
+test("switch-back from Custom restores the recorded ratio + preset stack", async ({ page }) => {
+    await openHarness(page);
+
+    await clickDrawnText(page, ratioLabels.Landscape["3:4"], { minY: 70, maxY: 100 });
+    expect((await getState(page)).widgets.aspect_ratio).toBe("3:4");
+
+    await clickDrawnText(page, "Custom", { minY: 20, maxY: 50 });
+    expect((await getState(page)).widgets.orientation).toBe("Custom");
+
+    await clickDrawnText(page, "Landscape", { minY: 20, maxY: 50 });
+    const state = await getState(page);
+    expect(state.widgets.orientation).toBe("Landscape");
+    expect(state.widgets.aspect_ratio).toBe("3:4");
+    expect(state.drawnText.map((item) => item.text)).toEqual(
+        expect.arrayContaining(presetLabels.Landscape["3:4"]),
+    );
 });
 
 test("custom editor preserves raw input while output labels use rounded-down dimensions", async ({ page }) => {
-    await openHarness(page, { aspect_ratio: "Custom", custom_width: 1028, custom_height: 1031 });
+    await openHarness(page, { orientation: "Custom", custom_width: 1028, custom_height: 1031 });
 
     let state = await getState(page);
     expect(state.widgets.custom_width).toBe(1028);
@@ -187,7 +212,7 @@ test.describe("zh-TW localization", () => {
     test.use({ locale: "zh-TW" });
 
     test("renders localized canvas labels without changing workflow values", async ({ page }) => {
-        await openHarness(page, { aspect_ratio: "Custom" });
+        await openHarness(page, { orientation: "Custom" });
         const state = await getState(page);
         const labels = state.drawnText.map((item) => item.text);
 
@@ -203,7 +228,7 @@ test.describe("zh-TW localization", () => {
             "輸出會向下對齊到最接近的 8 倍數",
             "批次大小",
         ]));
-        expect(state.widgets.orientation).toBe("Landscape");
-        expect(state.widgets.aspect_ratio).toBe("Custom");
+        expect(state.widgets.orientation).toBe("Custom");
+        expect(["1:1", "2:3", "3:4", "16:9"]).toContain(state.widgets.aspect_ratio);
     });
 });

@@ -10,6 +10,11 @@ const SELECTED_TEXT = "#ffffff";
 const OPTION_TEXT = "#918da3";
 const INPUT_FILL = "#252538";
 const INPUT_BORDER = "#4d496a";
+const LOCK_DIM_ALPHA = 0.4;
+const LOCK_STRIPE_COLOR = "#6e6e85";
+const LOCK_STRIPE_ALPHA = 0.22;
+const LOCK_STRIPE_SPACING = 8;
+const LOCK_STRIPE_WIDTH = 1;
 const CUSTOM_ROW_HEIGHT = 26;
 const CUSTOM_ROW_COUNT = 3;
 const DEFAULT_SIZE_LABELS = {
@@ -72,6 +77,7 @@ export function drawSegmented(
     controlY,
     widgetWidth,
     animationPosition = null,
+    locked = false,
 ) {
     const controlX = CONTROL_PADDING;
     const controlWidth = widgetWidth - CONTROL_PADDING * 2;
@@ -79,24 +85,61 @@ export function drawSegmented(
     const segmentCount = options.length;
     const segmentWidth = controlWidth / segmentCount;
 
-    drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
-
     const selectedIndex = options.findIndex((option) => option.value === selectedValue);
     const selectedPillIndex = animationPosition ?? selectedIndex;
-    if (selectedPillIndex >= 0) {
-        const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
-        drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
-    }
 
-    for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
-        const option = options[optionIndex];
-        const segmentX = controlX + optionIndex * segmentWidth;
-        const isSelected = selectedValue === option.value;
-        canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
-        canvasContext.font = "bold 12px sans-serif";
-        canvasContext.textAlign = "center";
-        canvasContext.textBaseline = "middle";
-        canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
+    if (locked) {
+        canvasContext.save();
+        canvasContext.globalAlpha = LOCK_DIM_ALPHA;
+        drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
+        if (selectedPillIndex >= 0) {
+            const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
+            drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
+        }
+        for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
+            const option = options[optionIndex];
+            const segmentX = controlX + optionIndex * segmentWidth;
+            const isSelected = selectedValue === option.value;
+            canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
+            canvasContext.font = "bold 12px sans-serif";
+            canvasContext.textAlign = "center";
+            canvasContext.textBaseline = "middle";
+            canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
+        }
+        canvasContext.restore();
+
+        canvasContext.save();
+        canvasContext.beginPath();
+        canvasContext.roundRect(controlX, controlY, controlWidth, controlHeight, 5);
+        canvasContext.clip();
+        canvasContext.globalAlpha = LOCK_STRIPE_ALPHA;
+        canvasContext.strokeStyle = LOCK_STRIPE_COLOR;
+        canvasContext.lineWidth = LOCK_STRIPE_WIDTH;
+        for (let stripeX = controlX - controlHeight; stripeX < controlX + controlWidth; stripeX += LOCK_STRIPE_SPACING) {
+            canvasContext.beginPath();
+            canvasContext.moveTo(stripeX, controlY + controlHeight);
+            canvasContext.lineTo(stripeX + controlHeight, controlY);
+            canvasContext.stroke();
+        }
+        canvasContext.restore();
+    } else {
+        drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
+
+        if (selectedPillIndex >= 0) {
+            const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
+            drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
+        }
+
+        for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
+            const option = options[optionIndex];
+            const segmentX = controlX + optionIndex * segmentWidth;
+            const isSelected = selectedValue === option.value;
+            canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
+            canvasContext.font = "bold 12px sans-serif";
+            canvasContext.textAlign = "center";
+            canvasContext.textBaseline = "middle";
+            canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
+        }
     }
 
     controls[controlName] = {
