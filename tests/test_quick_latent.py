@@ -121,6 +121,16 @@ class TestQuickLatentGenerate:
         assert batch == 2
         assert latent["samples"].shape == (2, 4, height // 8, width // 8)
 
+    def test_generate_declares_latent_downscale_ratio(self):
+        node = QuickLatent()
+        _, _, latent, _ = node.generate(
+            preset_resolution="1024",
+            aspect_ratio="1:1",
+            orientation="Landscape",
+            batch_size=1,
+        )
+        assert latent["downscale_ratio_spacial"] == 8
+
     @pytest.mark.parametrize(
         ("orientation", "expected_presets"),
         [

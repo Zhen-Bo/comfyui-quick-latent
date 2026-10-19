@@ -125,7 +125,7 @@ class QuickLatent:
             device=comfy.model_management.intermediate_device(),
         )
 
-        return (width, height, {"samples": latent}, batch_size)
+        return (width, height, {"samples": latent, "downscale_ratio_spacial": 8}, batch_size)
 
 
 NODE_CLASS_MAPPINGS = {"QuickLatent": QuickLatent}
