@@ -19,7 +19,7 @@ V3.0 replaces the preset sizes and the saved option values. V2 workflows are not
 | Orientation | Switches labels and swaps preset/custom width and height between portrait and landscape. |
 | Custom size | Enter direct output width and height. Input values are preserved, clamped to `512` through `4096`, then rounded down to multiples of `16` for the actual output. |
 | Batch size | Create latent batches from 1 to 64. |
-| Custom UI | Uses a compact canvas UI inside the ComfyUI node. |
+| Custom UI | Uses a compact canvas UI in the classic node view, and an HTML panel in Nodes 2.0. |
 
 ## Installation
 

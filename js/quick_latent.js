@@ -18,6 +18,7 @@ import {
     getBatchClickAction,
     getSizeBoxClickAction,
     getPresetStackClickValue,
+    getOutputValueLabels,
     normalizeOutputSlots,
 } from "./layout.js";
 import { openNumberInput } from "./size_input.js";
@@ -29,6 +30,7 @@ import {
     readWidgetState,
     writeWidgetState,
 } from "./widget_state.js";
+import { PANEL_HEIGHT, createVuePanel } from "./vue_panel.js";
 
 const SELECTION_ANIMATION_MS = 170;
 
@@ -75,6 +77,28 @@ function setupQuickLatentNode(node, translate) {
         onFrame: () => node.setDirtyCanvas(true, false),
     });
 
+    // Nodes 2.0 does not call onDrawForeground/onMouseDown, so it gets this DOM panel instead.
+    const vuePanel = createVuePanel({
+        translate,
+        onChange: (patch) => {
+            Object.assign(widgetState, patch);
+            ratioOptions = buildRatioOptions(widgetState.orientation);
+            syncHiddenWidgetsAndRecalculate();
+        },
+    });
+    const vuePanelWidget = node.addDOMWidget("quick_latent_panel", "quick_latent_panel", vuePanel.element, {
+        serialize: false,
+        hideOnZoom: false,
+        getMinHeight: () => PANEL_HEIGHT,
+        getMaxHeight: () => PANEL_HEIGHT,
+        surfaces: { canvas: "never", vueNode: "shown", panel: "never" },
+    });
+    vuePanelWidget.serialize = false;
+    // The panel only gets a size when Nodes 2.0 shows it, including after a live switch.
+    new ResizeObserver(() => {
+        if (vuePanel.element.offsetWidth > 0) syncOutputLabels();
+    }).observe(vuePanel.element);
+
     function getControlAreaWidth() {
         return node.size[0] - getOutputColumnReservedWidth();
     }
@@ -90,7 +114,17 @@ function setupQuickLatentNode(node, translate) {
         outputState.outputWidth = dimensions.width;
         outputState.outputHeight = dimensions.height;
         outputState.batchSize = widgetState.batchSize;
+        vuePanel.render(widgetState);
+        syncOutputLabels();
         node.setDirtyCanvas(true, false);
+    }
+
+    // Vue nodes show slot text (they track localized_name, not label); the classic canvas draws values itself.
+    function syncOutputLabels() {
+        const labels = isVueNodesMode() ? getOutputValueLabels(outputState) : [];
+        node.outputs?.forEach((output, index) => {
+            output.localized_name = labels[index] ?? "";
+        });
     }
 
     function syncHiddenWidgetsAndRecalculate() {
@@ -102,6 +136,8 @@ function setupQuickLatentNode(node, translate) {
     node.onDrawForeground = function (ctx) {
         if (origDrawFG) origDrawFG.call(this, ctx);
         if (this.flags?.collapsed) return;
+        // Clear Vue slot text left over from a live switch back to the classic canvas.
+        if (this.outputs?.some((output) => output.localized_name)) syncOutputLabels();
 
         const controlAreaWidth = getControlAreaWidth();
         drawOutputValues(ctx, outputState, this);
@@ -286,6 +322,10 @@ function setupQuickLatentNode(node, translate) {
     };
 
     syncHiddenWidgetsAndRecalculate();
+}
+
+function isVueNodesMode() {
+    return Boolean(globalThis.LiteGraph?.vueNodesMode);
 }
 
 function getSegmentedValue(control, options, pointerX, pointerY) {
