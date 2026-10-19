@@ -22,14 +22,14 @@ PRESET_RESOLUTION_TABLE = {
     },
     "16:9": {
         "1024": (1536, 864),
-        "1536": (1920, 1080),
+        "1536": (1920, 1072),
         "2048": (2560, 1440),
     },
 }
 
 PRESET_RESOLUTIONS = ["1024", "1536", "2048"]
 ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9"]
-DIMENSION_ALIGNMENT = 8
+DIMENSION_ALIGNMENT = 16
 
 CUSTOM_DIMENSION_MIN = 512
 CUSTOM_DIMENSION_MAX = 4096
@@ -89,11 +89,11 @@ class QuickLatent:
                 "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN, "max": BATCH_SIZE_MAX}),
                 "custom_width": (
                     "INT",
-                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8},
+                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 16},
                 ),
                 "custom_height": (
                     "INT",
-                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 8},
+                    {"default": 1024, "min": CUSTOM_DIMENSION_MIN, "max": CUSTOM_DIMENSION_MAX, "step": 16},
                 ),
             }
         }

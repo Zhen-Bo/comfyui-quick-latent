@@ -17,8 +17,8 @@ class TestCustomDimensionsRawOutput:
     def test_1024x1024_identity(self):
         assert calculate_custom_dimensions(1024, 1024) == (1024, 1024)
 
-    def test_1920x1080_already_aligned(self):
-        assert calculate_custom_dimensions(1920, 1080) == (1920, 1080)
+    def test_1920x1080_rounds_down_to_1072(self):
+        assert calculate_custom_dimensions(1920, 1080) == (1920, 1072)
 
 
 class TestCustomDimensionsClampAndRound:
@@ -31,12 +31,12 @@ class TestCustomDimensionsClampAndRound:
     def test_above_max_clamps_to_4096(self):
         assert calculate_custom_dimensions(9000, 9000) == (4096, 4096)
 
-    def test_non_multiple_of_8_rounds_down(self):
+    def test_non_multiple_of_16_rounds_down(self):
         assert calculate_custom_dimensions(513, 513) == (512, 512)
 
     def test_user_examples_round_down(self):
         assert calculate_custom_dimensions(1028, 1031) == (1024, 1024)
-        assert calculate_custom_dimensions(1032, 1032) == (1032, 1032)
+        assert calculate_custom_dimensions(1032, 1032) == (1024, 1024)
 
     def test_mixed_clamp_both_axes(self):
         assert calculate_custom_dimensions(5000, 300) == (4096, 512)
@@ -92,8 +92,8 @@ class TestCustomGenerateIntegration:
 class TestCustomInputTypes:
     def test_custom_width_widget_config(self):
         inputs = QuickLatent.INPUT_TYPES()["required"]
-        assert inputs["custom_width"] == ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 8})
+        assert inputs["custom_width"] == ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 16})
 
     def test_custom_height_widget_config(self):
         inputs = QuickLatent.INPUT_TYPES()["required"]
-        assert inputs["custom_height"] == ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 8})
+        assert inputs["custom_height"] == ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 16})

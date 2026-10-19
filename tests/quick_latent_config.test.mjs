@@ -22,13 +22,13 @@ const EXPECTED_PRESET_LABELS = {
         "1:1": ["1024 x 1024", "1536 x 1536", "2048 x 2048"],
         "2:3": ["1536 x 1024", "1920 x 1280", "2304 x 1536"],
         "3:4": ["1536 x 1152", "1792 x 1344", "2048 x 1536"],
-        "16:9": ["1536 x 864", "1920 x 1080", "2560 x 1440"],
+        "16:9": ["1536 x 864", "1920 x 1072", "2560 x 1440"],
     },
     Portrait: {
         "1:1": ["1024 x 1024", "1536 x 1536", "2048 x 2048"],
         "2:3": ["1024 x 1536", "1280 x 1920", "1536 x 2304"],
         "3:4": ["1152 x 1536", "1344 x 1792", "1536 x 2048"],
-        "16:9": ["864 x 1536", "1080 x 1920", "1440 x 2560"],
+        "16:9": ["864 x 1536", "1072 x 1920", "1440 x 2560"],
     },
 };
 
@@ -116,10 +116,10 @@ test("batch values clamp to schema bounds and reject floats", () => {
     assert.equal(normalizeBatchSizeValue("not-a-number"), 1);
 });
 
-test("custom output dimensions round down to the nearest multiple of 8", () => {
+test("custom output dimensions round down to the nearest multiple of 16", () => {
     assert.equal(alignDownToMultiple(1028), 1024);
     assert.equal(alignDownToMultiple(1031), 1024);
-    assert.equal(alignDownToMultiple(1032), 1032);
+    assert.equal(alignDownToMultiple(1040), 1040);
 });
 
 test("client custom calc clamps each axis to [512, 4096] like the backend", () => {
@@ -127,6 +127,6 @@ test("client custom calc clamps each axis to [512, 4096] like the backend", () =
     assert.deepEqual(calculateCustomDimensions(9000, 9000), { width: 4096, height: 4096 });
     assert.deepEqual(calculateCustomDimensions(513, 513), { width: 512, height: 512 });
     assert.deepEqual(calculateCustomDimensions(1028, 1031), { width: 1024, height: 1024 });
-    assert.deepEqual(calculateCustomDimensions(1032, 1032), { width: 1032, height: 1032 });
+    assert.deepEqual(calculateCustomDimensions(1032, 1032), { width: 1024, height: 1024 });
     assert.deepEqual(calculateCustomDimensions(5000, 300), { width: 4096, height: 512 });
 });

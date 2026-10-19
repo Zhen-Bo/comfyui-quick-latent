@@ -11,10 +11,10 @@ test("i18n resolves supported browser language variants", () => {
 
     const t = createTranslator({
         orientation: "方向",
-        customRoundDownHint: "輸出會向下對齊到最接近的 8 倍數",
+        customRoundDownHint: "輸出會向下對齊到最接近的 16 倍數",
     });
     assert.equal(t("orientation"), "方向");
-    assert.equal(t("customRoundDownHint"), "輸出會向下對齊到最接近的 8 倍數");
+    assert.equal(t("customRoundDownHint"), "輸出會向下對齊到最接近的 16 倍數");
 });
 
 test("i18n loads locale JSON and falls back to English keys", async () => {

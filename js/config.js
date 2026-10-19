@@ -16,7 +16,7 @@ export const PRESET_RESOLUTION_TABLE = {
     },
     "16:9": {
         "1024": [1536, 864],
-        "1536": [1920, 1080],
+        "1536": [1920, 1072],
         "2048": [2560, 1440],
     },
 };
@@ -30,7 +30,7 @@ export const RATIO_LABELS = {
 };
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
 export const MIN_WIDTH = 370;
-export const DIMENSION_ALIGNMENT = 8;
+export const DIMENSION_ALIGNMENT = 16;
 export const CUSTOM_MIN = 512;
 export const CUSTOM_MAX = 4096;
 export const BATCH_SIZE_MIN = 1;

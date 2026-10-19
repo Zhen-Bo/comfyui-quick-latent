@@ -9,5 +9,5 @@
     "batchSize": "批次大小",
     "width": "寬度",
     "height": "高度",
-    "customRoundDownHint": "輸出會向下對齊到最接近的 8 倍數"
+    "customRoundDownHint": "輸出會向下對齊到最接近的 16 倍數"
 }

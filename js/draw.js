@@ -20,7 +20,7 @@ const CUSTOM_ROW_COUNT = 3;
 const DEFAULT_SIZE_LABELS = {
     width: "Width",
     height: "Height",
-    hint: "Output rounds down to nearest multiple of 8",
+    hint: "Output rounds down to nearest multiple of 16",
 };
 
 function drawSelectedPill(canvasContext, pillX, pillY, pillWidth, pillHeight, cornerRadius) {

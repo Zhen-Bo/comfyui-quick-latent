@@ -14,10 +14,10 @@ V2.0 removes the scale factor control and the `SCALE` output. Selected dimension
 
 | Feature | Description |
 | --- | --- |
-| Direct presets | Choose explicit output sizes such as `1024 x 1536`, `1920 x 1080`, or `2048 x 2048`. |
+| Direct presets | Choose explicit output sizes such as `1024 x 1536`, `1920 x 1072`, or `2048 x 2048`. |
 | Ratio families | Supports `1:1`, `2:3`, `3:4`, `16:9`, and `Custom`. |
 | Orientation | Switches labels and swaps preset/custom width and height between portrait and landscape. |
-| Custom size | Enter direct output width and height. Input values are preserved, clamped to `512` through `4096`, then rounded down to multiples of `8` for the actual output. |
+| Custom size | Enter direct output width and height. Input values are preserved, clamped to `512` through `4096`, then rounded down to multiples of `16` for the actual output. |
 | Batch size | Create latent batches from 1 to 64. |
 | Custom UI | Uses a compact canvas UI inside the ComfyUI node. |
 

@@ -117,7 +117,7 @@ class TestQuickLatentGenerate:
             batch_size=2,
         )
         width, height, latent, batch = result
-        assert (width, height) == (1080, 1920)
+        assert (width, height) == (1072, 1920)
         assert batch == 2
         assert latent["samples"].shape == (2, 4, height // 8, width // 8)
 

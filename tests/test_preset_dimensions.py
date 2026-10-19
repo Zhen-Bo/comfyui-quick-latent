@@ -72,7 +72,7 @@ class TestAlignDownToMultiple:
         assert align_down_to_multiple(960) == 960
 
     def test_aligns_down(self):
-        assert align_down_to_multiple(1081) == 1080
+        assert align_down_to_multiple(1081) == 1072
 
     def test_zero(self):
         assert align_down_to_multiple(0) == 0
