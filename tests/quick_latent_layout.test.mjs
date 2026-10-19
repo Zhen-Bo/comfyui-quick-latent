@@ -102,16 +102,16 @@ test("preset-stack hit-test maps contiguous rows to preset values", () => {
         rowHeight: 24,
         rowGap: 0,
         options: [
-            { value: "1024" },
-            { value: "1536" },
-            { value: "2048" },
+            { value: "small" },
+            { value: "medium" },
+            { value: "large" },
         ],
     };
 
-    assert.equal(getPresetStackClickValue(control, 20, 110), "1024");
-    assert.equal(getPresetStackClickValue(control, 20, 126), "1536");
-    assert.equal(getPresetStackClickValue(control, 20, 150), "2048");
-    assert.equal(getPresetStackClickValue(control, 20, 171), "2048");
+    assert.equal(getPresetStackClickValue(control, 20, 110), "small");
+    assert.equal(getPresetStackClickValue(control, 20, 126), "medium");
+    assert.equal(getPresetStackClickValue(control, 20, 150), "large");
+    assert.equal(getPresetStackClickValue(control, 20, 171), "large");
     assert.equal(getPresetStackClickValue(control, 20, 172), null);
     assert.equal(getPresetStackClickValue(control, 320, 110), null);
 });

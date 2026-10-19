@@ -1,101 +1,71 @@
-export const PRESET_RESOLUTION_TABLE = {
-    "1:1": {
-        "1024": [1024, 1024],
-        "1536": [1536, 1536],
-        "2048": [2048, 2048],
-    },
-    "2:3": {
-        "1024": [1024, 1536],
-        "1536": [1280, 1920],
-        "2048": [1536, 2304],
-    },
-    "3:4": {
-        "1024": [1152, 1536],
-        "1536": [1344, 1792],
-        "2048": [1536, 2048],
-    },
-    "16:9": {
-        "1024": [1536, 864],
-        "1536": [1920, 1072],
-        "2048": [2560, 1440],
-    },
-};
+// Size rules mirror nodes.py; keep both in sync.
+export const ALIGNMENT = 16;
+// Long edge of each preset size; the short edge follows the ratio.
+export const SIZES = { small: 1536, medium: 1920, large: 2560 };
+// Ratios as [short part, long part].
+export const RATIOS = { square: [1, 1], photo: [2, 3], standard: [3, 4], widescreen: [9, 16] };
+// Square has its own, smaller sizes.
+export const SQUARE_SIZES = { small: 1024, medium: 1536, large: 2048 };
+export const ORIENTATIONS = ["portrait", "landscape", "custom"];
 
-export const PRESET_RESOLUTIONS = ["1024", "1536", "2048"];
-export const ASPECT_RATIOS = ["1:1", "2:3", "3:4", "16:9"];
-export const ORIENTATIONS = ["Landscape", "Portrait", "Custom"];
-export const RATIO_LABELS = {
-    Landscape: { "1:1": "1:1", "2:3": "3:2", "3:4": "4:3", "16:9": "16:9" },
-    Portrait: { "1:1": "1:1", "2:3": "2:3", "3:4": "3:4", "16:9": "9:16" },
-};
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
 export const MIN_WIDTH = 370;
-export const DIMENSION_ALIGNMENT = 16;
 export const CUSTOM_MIN = 512;
 export const CUSTOM_MAX = 4096;
 export const BATCH_SIZE_MIN = 1;
 export const BATCH_SIZE_MAX = 64;
 
-export function alignDownToMultiple(value) {
-    return value - (value % DIMENSION_ALIGNMENT);
+export function floorToAlignment(value) {
+    return value - (value % ALIGNMENT);
 }
 
-export function normalizeCustomDimensionValue(value, fallback = 1024) {
+function clampInt(value, low, high, fallback) {
     const numericValue = Number(value);
     const integerValue = Number.isInteger(numericValue) ? numericValue : fallback;
-    return Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, integerValue));
+    return Math.max(low, Math.min(high, integerValue));
 }
 
-export function orientDimensions(width, height, orientation) {
-    if (orientation === "Landscape" && width < height) return [height, width];
-    if (orientation === "Portrait" && height < width) return [height, width];
-    return [width, height];
-}
-
-export function calculatePresetDimensions(presetResolution, aspectRatio, orientation) {
-    const [baseWidth, baseHeight] = PRESET_RESOLUTION_TABLE[aspectRatio][presetResolution];
-    const [width, height] = orientDimensions(baseWidth, baseHeight, orientation);
-    return { width, height };
-}
-
-export function calculateCustomDimensions(customWidth, customHeight) {
-    return {
-        width: alignDownToMultiple(normalizeCustomDimensionValue(customWidth)),
-        height: alignDownToMultiple(normalizeCustomDimensionValue(customHeight)),
-    };
-}
-
-export function buildRatioOptions(orientation) {
-    return ASPECT_RATIOS.map((ratio) => ({
-        label: RATIO_LABELS[orientation]?.[ratio] || ratio,
-        value: ratio,
-    }));
-}
-
-export function buildPresetOptions(aspectRatio, orientation) {
-    return PRESET_RESOLUTIONS.map((presetResolution) => {
-        const dimensions = calculatePresetDimensions(presetResolution, aspectRatio, orientation);
-        return {
-            label: `${dimensions.width} x ${dimensions.height}`,
-            value: presetResolution,
-        };
-    });
-}
-
-export function normalizePresetResolution(value) {
-    return PRESET_RESOLUTIONS.includes(value) ? value : PRESET_RESOLUTIONS[0];
-}
-
-export function normalizeAspectRatio(value) {
-    return ASPECT_RATIOS.includes(value) ? value : ASPECT_RATIOS[0];
-}
-
-export function normalizeOrientation(value) {
-    return ORIENTATIONS.includes(value) ? value : ORIENTATIONS[0];
+export function normalizeCustomDimensionValue(value) {
+    return clampInt(value, CUSTOM_MIN, CUSTOM_MAX, 1024);
 }
 
 export function normalizeBatchSizeValue(value) {
-    const numericValue = Number(value);
-    const integerValue = Number.isInteger(numericValue) ? numericValue : BATCH_SIZE_MIN;
-    return Math.max(BATCH_SIZE_MIN, Math.min(BATCH_SIZE_MAX, integerValue));
+    return clampInt(value, BATCH_SIZE_MIN, BATCH_SIZE_MAX, BATCH_SIZE_MIN);
+}
+
+export function normalizeChoice(value, choices) {
+    return choices.includes(value) ? value : choices[0];
+}
+
+export function presetDimensions(size, ratio, orientation) {
+    const [shortPart, longPart] = RATIOS[ratio];
+    const longEdge = (ratio === "square" ? SQUARE_SIZES : SIZES)[size];
+    const shortEdge = floorToAlignment(Math.floor((longEdge * shortPart) / longPart));
+    return orientation === "landscape"
+        ? { width: longEdge, height: shortEdge }
+        : { width: shortEdge, height: longEdge };
+}
+
+export function customDimensions(customWidth, customHeight) {
+    return {
+        width: floorToAlignment(normalizeCustomDimensionValue(customWidth)),
+        height: floorToAlignment(normalizeCustomDimensionValue(customHeight)),
+    };
+}
+
+// Shown on the node: short:long in portrait, long:short in landscape.
+export function ratioLabel(ratio, orientation) {
+    const [shortPart, longPart] = RATIOS[ratio];
+    return orientation === "landscape" ? `${longPart}:${shortPart}` : `${shortPart}:${longPart}`;
+}
+
+export function buildRatioOptions(orientation) {
+    return Object.keys(RATIOS).map((ratio) => ({ label: ratioLabel(ratio, orientation), value: ratio }));
+}
+
+export function buildPresetOptions(ratio, orientation) {
+    return Object.keys(SIZES).map((size) => {
+        const { width, height } = presetDimensions(size, ratio, orientation);
+        return { label: `${width} x ${height}`, value: size };
+    });
 }

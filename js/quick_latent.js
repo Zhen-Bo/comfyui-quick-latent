@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 import {
     MIN_WIDTH,
     CUSTOM_MIN, CUSTOM_MAX,
-    calculatePresetDimensions, calculateCustomDimensions,
+    presetDimensions, customDimensions,
     buildRatioOptions, buildPresetOptions,
     normalizeBatchSizeValue,
 } from "./config.js";
@@ -49,9 +49,9 @@ app.registerExtension({
 
 function setupQuickLatentNode(node, translate) {
     const orientationOptions = [
-        { label: translate("portrait"), value: "Portrait" },
-        { label: translate("landscape"), value: "Landscape" },
-        { label: translate("custom"), value: "Custom" },
+        { label: translate("portrait"), value: "portrait" },
+        { label: translate("landscape"), value: "landscape" },
+        { label: translate("custom"), value: "custom" },
     ];
     const customSizeLabels = {
         width: translate("width"),
@@ -80,9 +80,9 @@ function setupQuickLatentNode(node, translate) {
     }
 
     function updateOutputState() {
-        const dimensions = widgetState.orientation === "Custom"
-            ? calculateCustomDimensions(widgetState.customWidth, widgetState.customHeight)
-            : calculatePresetDimensions(
+        const dimensions = widgetState.orientation === "custom"
+            ? customDimensions(widgetState.customWidth, widgetState.customHeight)
+            : presetDimensions(
                 widgetState.presetResolution,
                 widgetState.aspectRatio,
                 widgetState.orientation,
@@ -132,18 +132,18 @@ function setupQuickLatentNode(node, translate) {
             y,
             controlAreaWidth,
             selectionAnimations.position("ratio"),
-            widgetState.orientation === "Custom",
+            widgetState.orientation === "custom",
         );
         y += 32;
 
         drawLabel(
             ctx,
-            widgetState.orientation === "Custom" ? translate("customSize") : translate("presetResolution"),
+            widgetState.orientation === "custom" ? translate("customSize") : translate("presetResolution"),
             y + 8,
             controlAreaWidth,
         );
         y += 18;
-        if (widgetState.orientation === "Custom") {
+        if (widgetState.orientation === "custom") {
             drawSize(ctx, controls, widgetState.customWidth, widgetState.customHeight, y, controlAreaWidth, customSizeLabels);
         } else {
             drawPresetStack(
@@ -184,7 +184,7 @@ function setupQuickLatentNode(node, translate) {
             return true;
         }
 
-        if (widgetState.orientation !== "Custom") {
+        if (widgetState.orientation !== "custom") {
             const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, pointerX, pointerY);
             if (nextRatio) {
                 if (nextRatio !== widgetState.aspectRatio) {
@@ -196,7 +196,7 @@ function setupQuickLatentNode(node, translate) {
             }
         }
 
-        if (widgetState.orientation === "Custom") {
+        if (widgetState.orientation === "custom") {
             const sizeAction = getSizeBoxClickAction(controls, pointerX, pointerY);
             if (sizeAction) {
                 const isWidth = sizeAction === "sizeW";

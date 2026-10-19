@@ -1,27 +1,26 @@
 # Dimension Reference
 
-Quick Latent V2 treats the selected size as the direct output size. There is no scale factor and no target-size calculation.
+Quick Latent treats the selected size as the direct output size. There is no scale factor and no target-size calculation.
 
-## Calculation
+## Rules
 
-1. Select a ratio family.
-2. Select `Portrait` or `Landscape`.
-3. Select a preset resolution or enter a custom width and height.
-4. Preserve custom input values in the UI.
-5. Clamp custom dimensions to `512..4096` for output.
-6. Align each custom output axis down to the previous multiple of `16`.
-7. Preset dimensions are already aligned to multiples of `16`.
-8. Return the aligned values as `OUTPUT_WIDTH` and `OUTPUT_HEIGHT`.
+1. Each preset size fixes the long edge: `small` = `1536`, `medium` = `1920`, `large` = `2560`. `square` uses its own sizes: `1024`, `1536`, `2048`.
+2. The short edge is `long edge x ratio`, rounded down to a multiple of `16`.
+3. `landscape` swaps width and height. `portrait` keeps the long edge as the height.
+4. `custom` ignores the preset size and ratio. Each custom axis is clamped to `512..4096`, then rounded down to a multiple of `16`.
+
+Every output dimension is a multiple of `16`, which suits SDXL, FLUX, FLUX.2, Qwen-Image, and other models whose latent or patch grid needs 16 px steps.
 
 ## Preset Table
 
-| Ratio family | Portrait label | Portrait presets | Landscape label | Landscape presets |
+Portrait sizes (width x height). Landscape swaps the two numbers.
+
+| Ratio | Label | `small` | `medium` | `large` |
 | --- | --- | --- | --- | --- |
-| `1:1` | `1:1` | `1024 x 1024`, `1536 x 1536`, `2048 x 2048` | `1:1` | `1024 x 1024`, `1536 x 1536`, `2048 x 2048` |
-| `2:3` | `2:3` | `1024 x 1536`, `1280 x 1920`, `1536 x 2304` | `3:2` | `1536 x 1024`, `1920 x 1280`, `2304 x 1536` |
-| `3:4` | `3:4` | `1152 x 1536`, `1344 x 1792`, `1536 x 2048` | `4:3` | `1536 x 1152`, `1792 x 1344`, `2048 x 1536` |
-| `16:9` | `9:16` | `864 x 1536`, `1072 x 1920`, `1440 x 2560` | `16:9` | `1536 x 864`, `1920 x 1072`, `2560 x 1440` |
-| `Custom` | `Custom` | User width and height | `Custom` | User width and height, swapped when orientation changes |
+| `square` | `1:1` | `1024 x 1024` | `1536 x 1536` | `2048 x 2048` |
+| `photo` | `2:3` / `3:2` | `1024 x 1536` | `1280 x 1920` | `1696 x 2560` |
+| `standard` | `3:4` / `4:3` | `1152 x 1536` | `1440 x 1920` | `1920 x 2560` |
+| `widescreen` | `9:16` / `16:9` | `864 x 1536` | `1072 x 1920` | `1440 x 2560` |
 
 ## Output Meaning
 
@@ -29,9 +28,9 @@ Quick Latent V2 treats the selected size as the direct output size. There is no 
 | --- | --- |
 | `OUTPUT_WIDTH` | Actual 16-aligned latent image width. |
 | `OUTPUT_HEIGHT` | Actual 16-aligned latent image height. |
-| `LATENT` | Zero-filled latent tensor shaped as `[batch, 4, height // 8, width // 8]`. |
+| `LATENT` | Zero-filled latent tensor shaped as `[batch, 4, height // 8, width // 8]`, with `downscale_ratio_spacial: 8` so ComfyUI rescales it for 16x models such as FLUX.2 and Qwen-Image 2.1. |
 | `BATCH_SIZE` | Selected batch size after clamping to `1..64`. |
 
-## V2.0 Breaking Change
+## V3.0 Breaking Change
 
-V2.0 intentionally does not migrate V1 workflow settings. V1 `1K`/`2K`/`4K`, scale factor, `SCALE` output, and `21:9` preset choices should be reselected manually in V2.
+V3.0 does not read V2 workflow settings. Delete old Quick Latent nodes and add a new one after upgrading.

@@ -1,9 +1,10 @@
 import {
-    normalizeAspectRatio,
+    ORIENTATIONS,
+    RATIOS,
+    SIZES,
     normalizeBatchSizeValue,
+    normalizeChoice,
     normalizeCustomDimensionValue,
-    normalizeOrientation,
-    normalizePresetResolution,
 } from "./config.js";
 
 export function getQuickLatentWidgets(node) {
@@ -29,9 +30,9 @@ export function hideNativeWidgets(widgets) {
 
 export function readWidgetState(widgets) {
     return {
-        presetResolution: normalizePresetResolution(widgets.presetResolution?.value),
-        aspectRatio: normalizeAspectRatio(widgets.aspectRatio?.value),
-        orientation: normalizeOrientation(widgets.orientation?.value),
+        presetResolution: normalizeChoice(widgets.presetResolution?.value, Object.keys(SIZES)),
+        aspectRatio: normalizeChoice(widgets.aspectRatio?.value, Object.keys(RATIOS)),
+        orientation: normalizeChoice(widgets.orientation?.value, ORIENTATIONS),
         batchSize: normalizeBatchSizeValue(widgets.batchSize?.value),
         customWidth: normalizeCustomDimensionValue(widgets.customWidth?.value),
         customHeight: normalizeCustomDimensionValue(widgets.customHeight?.value),
