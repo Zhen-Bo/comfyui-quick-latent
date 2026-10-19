@@ -13,6 +13,9 @@ import {
 
 // Same vertical rhythm as the classic canvas: 18px label, 26px control, 6px gap.
 export const PANEL_HEIGHT = 252;
+// Same slide as the classic canvas: 170ms easeOutCubic.
+const SELECTION_ANIMATION_MS = 170;
+const EASE_OUT_CUBIC = "cubic-bezier(0.33, 1, 0.68, 1)";
 // Room for the output values column, as on the classic canvas (53px reserve minus the 12px grid padding).
 const OUTPUT_COLUMN_WIDTH = 41;
 
@@ -32,15 +35,19 @@ const STYLE = `
 .ql-panel * { box-sizing: border-box; }
 .ql-label { height: 18px; line-height: 16px; font-size: 10px; color: #8d899f; white-space: nowrap; }
 .ql-gap { margin-bottom: 6px; }
-.ql-frame { display: flex; padding: 2px; border: 1px solid #3f3b5a; border-radius: 5px; background: #252538; }
+.ql-frame { position: relative; display: flex; padding: 2px; border: 1px solid #3f3b5a; border-radius: 5px; background: #252538; }
+.ql-pill { position: absolute; border-radius: 4px; background: #815fc8; box-shadow: inset 0 0 0 1.25px rgba(229, 219, 255, 0.58);
+    transition: left ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC}, top ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC}; }
+.ql-seg .ql-pill { top: 2px; bottom: 2px; }
+.ql-stack .ql-pill { left: 2px; right: 2px; }
 .ql-frame.ql-input-frame { border-color: #4d496a; }
 .ql-seg { height: 26px; }
 .ql-stack { height: 78px; flex-direction: column; }
-.ql-choice { flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #918da3;
+.ql-choice { position: relative; flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #918da3;
     font: bold 12px sans-serif; cursor: pointer; }
 .ql-stack .ql-choice { font-family: monospace; }
 .ql-choice:hover:not(.ql-on):not(:disabled) { color: #c9c5d8; }
-.ql-choice.ql-on { background: #815fc8; color: #fff; box-shadow: inset 0 0 0 1.25px rgba(229, 219, 255, 0.58); }
+.ql-choice.ql-on { color: #fff; }
 .ql-locked { position: relative; }
 .ql-locked .ql-frame { opacity: 0.4; }
 .ql-locked .ql-choice { cursor: not-allowed; }
@@ -83,8 +90,30 @@ function section(labelText, control, gap = true) {
     return [el("div", "ql-label", labelText), control];
 }
 
-function choiceButtons(frameClass, options, selectedValue, onSelect, locked = false) {
+// Places the pill on option `index` of `count`, inside the 2px frame padding.
+function placePill(pill, vertical, index, count) {
+    const offset = `calc(2px + (100% - 4px) * ${index} / ${count})`;
+    const length = `calc((100% - 4px) / ${count})`;
+    if (vertical) Object.assign(pill.style, { top: offset, height: length });
+    else Object.assign(pill.style, { left: offset, width: length });
+}
+
+// The pill starts at `fromIndex` and slides to the selected option once it is in the DOM.
+function selectionPill(vertical, fromIndex, toIndex, count) {
+    const pill = el("div", "ql-pill");
+    placePill(pill, vertical, fromIndex ?? toIndex, count);
+    if (fromIndex !== null && fromIndex !== toIndex) {
+        requestAnimationFrame(() => requestAnimationFrame(() => placePill(pill, vertical, toIndex, count)));
+    }
+    return pill;
+}
+
+function choiceButtons(frameClass, options, selectedValue, onSelect, locked = false, fromIndex = null) {
     const frame = el("div", `ql-frame ${frameClass}`);
+    const selectedIndex = options.findIndex((option) => option.value === selectedValue);
+    if (selectedIndex >= 0) {
+        frame.append(selectionPill(frameClass.includes("ql-stack"), fromIndex, selectedIndex, options.length));
+    }
     for (const option of options) {
         const button = el("button", option.value === selectedValue ? "ql-choice ql-on" : "ql-choice", option.label);
         button.type = "button";
@@ -118,11 +147,20 @@ export function createVuePanel({ translate, onChange }) {
     ensureStyle();
     const element = el("div", "ql-panel");
     const orientationOptions = ["portrait", "landscape", "custom"].map((value) => ({ label: translate(value), value }));
+    // Last selected index per control, so the pill can slide from it on the next render.
+    const lastIndex = {};
+
+    function trackedChoice(key, frameClass, options, selectedValue, onSelect, locked = false) {
+        const fromIndex = lastIndex[key] ?? null;
+        lastIndex[key] = options.findIndex((option) => option.value === selectedValue);
+        return choiceButtons(frameClass, options, selectedValue, onSelect, locked, fromIndex);
+    }
 
     function sizeSection(state) {
         const size = el("div", "ql-size");
         if (state.orientation !== "custom") {
-            size.append(choiceButtons(
+            size.append(trackedChoice(
+                "resolution",
                 "ql-input-frame ql-stack",
                 buildPresetOptions(state.aspectRatio, state.orientation),
                 state.presetResolution,
@@ -131,6 +169,8 @@ export function createVuePanel({ translate, onChange }) {
             return section(translate("presetResolution"), size, false);
         }
 
+        // The preset stack is gone in custom mode; do not slide from a stale row when it comes back.
+        delete lastIndex.resolution;
         const custom = el("div", "ql-custom");
         custom.append(
             el("div", "ql-label", translate("width")),
@@ -165,10 +205,11 @@ export function createVuePanel({ translate, onChange }) {
 
     function render(state) {
         element.replaceChildren(
-            ...section(translate("orientation"), choiceButtons(
-                "ql-seg", orientationOptions, state.orientation, (orientation) => onChange({ orientation }),
+            ...section(translate("orientation"), trackedChoice(
+                "orient", "ql-seg", orientationOptions, state.orientation, (orientation) => onChange({ orientation }),
             )),
-            ...section(translate("aspectRatio"), choiceButtons(
+            ...section(translate("aspectRatio"), trackedChoice(
+                "ratio",
                 "ql-seg",
                 buildRatioOptions(state.orientation),
                 state.aspectRatio,
