@@ -1,8 +1,8 @@
 import { app } from "../../scripts/app.js";
 import {
-    MIN_WIDTH,
     CUSTOM_MIN, CUSTOM_MAX,
-    calculatePresetDimensions, calculateCustomDimensions,
+    BATCH_SIZE_MIN, BATCH_SIZE_MAX,
+    presetDimensions, customDimensions,
     buildRatioOptions, buildPresetOptions,
     normalizeBatchSizeValue,
 } from "./config.js";
@@ -18,19 +18,19 @@ import {
     getBatchClickAction,
     getSizeBoxClickAction,
     getPresetStackClickValue,
+    getOutputValueLabels,
     normalizeOutputSlots,
 } from "./layout.js";
 import { openNumberInput } from "./size_input.js";
 import { createTranslator, loadLocaleMessages } from "./i18n.js";
-import { SelectionAnimationController } from "./selection_animation.js";
+import { SELECTION_ANIMATION_MS, SelectionAnimationController } from "./selection_animation.js";
 import {
     getQuickLatentWidgets,
     hideNativeWidgets,
     readWidgetState,
     writeWidgetState,
 } from "./widget_state.js";
-
-const SELECTION_ANIMATION_MS = 170;
+import { PANEL_HEIGHT, createVuePanel } from "./vue_panel.js";
 
 app.registerExtension({
     name: "QuickLatent",
@@ -49,9 +49,9 @@ app.registerExtension({
 
 function setupQuickLatentNode(node, translate) {
     const orientationOptions = [
-        { label: translate("portrait"), value: "Portrait" },
-        { label: translate("landscape"), value: "Landscape" },
-        { label: translate("custom"), value: "Custom" },
+        { label: translate("portrait"), value: "portrait" },
+        { label: translate("landscape"), value: "landscape" },
+        { label: translate("custom"), value: "custom" },
     ];
     const customSizeLabels = {
         width: translate("width"),
@@ -75,14 +75,33 @@ function setupQuickLatentNode(node, translate) {
         onFrame: () => node.setDirtyCanvas(true, false),
     });
 
+    // Nodes 2.0 does not call onDrawForeground/onMouseDown, so it gets this DOM panel instead.
+    const vuePanel = createVuePanel({
+        translate,
+        onChange: (patch) => {
+            Object.assign(widgetState, patch);
+            ratioOptions = buildRatioOptions(widgetState.orientation);
+            syncHiddenWidgetsAndRecalculate();
+        },
+    });
+    const vuePanelWidget = node.addDOMWidget("quick_latent_panel", "quick_latent_panel", vuePanel.element, {
+        serialize: false,
+        hideOnZoom: false,
+        getMinHeight: () => PANEL_HEIGHT,
+        getMaxHeight: () => PANEL_HEIGHT,
+        surfaces: { canvas: "never", vueNode: "shown", panel: "never" },
+    });
+    vuePanelWidget.serialize = false;
+    onElementShown(vuePanel.element, syncOutputLabels);
+
     function getControlAreaWidth() {
         return node.size[0] - getOutputColumnReservedWidth();
     }
 
     function updateOutputState() {
-        const dimensions = widgetState.orientation === "Custom"
-            ? calculateCustomDimensions(widgetState.customWidth, widgetState.customHeight)
-            : calculatePresetDimensions(
+        const dimensions = widgetState.orientation === "custom"
+            ? customDimensions(widgetState.customWidth, widgetState.customHeight)
+            : presetDimensions(
                 widgetState.presetResolution,
                 widgetState.aspectRatio,
                 widgetState.orientation,
@@ -90,7 +109,17 @@ function setupQuickLatentNode(node, translate) {
         outputState.outputWidth = dimensions.width;
         outputState.outputHeight = dimensions.height;
         outputState.batchSize = widgetState.batchSize;
+        vuePanel.render(widgetState);
+        syncOutputLabels();
         node.setDirtyCanvas(true, false);
+    }
+
+    // Vue nodes show slot text (they track localized_name, not label); the classic canvas draws values itself.
+    function syncOutputLabels() {
+        const labels = isVueNodesMode() ? getOutputValueLabels(outputState) : [];
+        node.outputs?.forEach((output, index) => {
+            output.localized_name = labels[index] ?? "";
+        });
     }
 
     function syncHiddenWidgetsAndRecalculate() {
@@ -102,12 +131,14 @@ function setupQuickLatentNode(node, translate) {
     node.onDrawForeground = function (ctx) {
         if (origDrawFG) origDrawFG.call(this, ctx);
         if (this.flags?.collapsed) return;
+        const hasLeftoverVueSlotText = this.outputs?.some((output) => output.localized_name);
+        if (hasLeftoverVueSlotText) syncOutputLabels();
 
         const controlAreaWidth = getControlAreaWidth();
         drawOutputValues(ctx, outputState, this);
 
         let y = getControlStartY();
-        drawLabel(ctx, translate("orientation"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("orientation"), y + 8);
         y += 18;
         drawSegmented(
             ctx,
@@ -121,7 +152,7 @@ function setupQuickLatentNode(node, translate) {
         );
         y += 32;
 
-        drawLabel(ctx, translate("aspectRatio"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("aspectRatio"), y + 8);
         y += 18;
         drawSegmented(
             ctx,
@@ -132,18 +163,17 @@ function setupQuickLatentNode(node, translate) {
             y,
             controlAreaWidth,
             selectionAnimations.position("ratio"),
-            widgetState.orientation === "Custom",
+            widgetState.orientation === "custom",
         );
         y += 32;
 
         drawLabel(
             ctx,
-            widgetState.orientation === "Custom" ? translate("customSize") : translate("presetResolution"),
+            widgetState.orientation === "custom" ? translate("customSize") : translate("presetResolution"),
             y + 8,
-            controlAreaWidth,
         );
         y += 18;
-        if (widgetState.orientation === "Custom") {
+        if (widgetState.orientation === "custom") {
             drawSize(ctx, controls, widgetState.customWidth, widgetState.customHeight, y, controlAreaWidth, customSizeLabels);
         } else {
             drawPresetStack(
@@ -159,7 +189,7 @@ function setupQuickLatentNode(node, translate) {
         }
         y += 84;
 
-        drawLabel(ctx, translate("batchSize"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("batchSize"), y + 8);
         y += 18;
         drawBatch(ctx, controls, "batch", widgetState.batchSize, y, controlAreaWidth);
         y += 32;
@@ -184,7 +214,7 @@ function setupQuickLatentNode(node, translate) {
             return true;
         }
 
-        if (widgetState.orientation !== "Custom") {
+        if (widgetState.orientation !== "custom") {
             const nextRatio = getSegmentedValue(controls.ratio, ratioOptions, pointerX, pointerY);
             if (nextRatio) {
                 if (nextRatio !== widgetState.aspectRatio) {
@@ -196,7 +226,7 @@ function setupQuickLatentNode(node, translate) {
             }
         }
 
-        if (widgetState.orientation === "Custom") {
+        if (widgetState.orientation === "custom") {
             const sizeAction = getSizeBoxClickAction(controls, pointerX, pointerY);
             if (sizeAction) {
                 const isWidth = sizeAction === "sizeW";
@@ -240,8 +270,8 @@ function setupQuickLatentNode(node, translate) {
                     node: this,
                     box: controls.batch.valueBox,
                     value: widgetState.batchSize,
-                    min: 1,
-                    max: 64,
+                    min: BATCH_SIZE_MIN,
+                    max: BATCH_SIZE_MAX,
                     onCommit: (value) => {
                         widgetState.batchSize = normalizeBatchSizeValue(value);
                         syncHiddenWidgetsAndRecalculate();
@@ -265,13 +295,14 @@ function setupQuickLatentNode(node, translate) {
             ratioOptions = buildRatioOptions(widgetState.orientation);
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
-            syncHiddenWidgetsAndRecalculate();
+            // Do not write back: unknown saved values (old workflows) must stay and fail validation.
+            updateOutputState();
         }, 100);
     };
 
     node.getInputs = function () { return []; };
 
-    node.size[0] = Math.max(node.size[0], MIN_WIDTH);
+    node.size[0] = Math.max(node.size[0], getQuickLatentMinWidth());
     node.size[1] = Math.max(node.size[1], contentMinHeight);
 
     node.computeSize = function () {
@@ -280,12 +311,22 @@ function setupQuickLatentNode(node, translate) {
 
     const origResize = node.onResize;
     node.onResize = function (size) {
-        size[0] = Math.max(size[0], MIN_WIDTH);
+        size[0] = Math.max(size[0], getQuickLatentMinWidth());
         size[1] = Math.max(size[1], contentMinHeight);
         if (origResize) origResize.call(this, size);
     };
 
     syncHiddenWidgetsAndRecalculate();
+}
+
+function isVueNodesMode() {
+    return Boolean(globalThis.LiteGraph?.vueNodesMode);
+}
+
+function onElementShown(element, callback) {
+    new ResizeObserver(() => {
+        if (element.offsetWidth > 0) callback();
+    }).observe(element);
 }
 
 function getSegmentedValue(control, options, pointerX, pointerY) {

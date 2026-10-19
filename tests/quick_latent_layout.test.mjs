@@ -1,7 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 
-import { MIN_WIDTH } from "../js/config.js";
 import {
     getBatchClickAction,
     getControlStartY,
@@ -55,7 +54,6 @@ test("node minimum height fits the V2 controls", () => {
 
 test("node minimum width does not grow after horizontal resize", () => {
     assert.equal(getQuickLatentMinWidth(), 370);
-    assert.equal(MIN_WIDTH, getQuickLatentMinWidth());
 });
 
 test("latent output labels use compact V2 text", () => {
@@ -100,18 +98,17 @@ test("preset-stack hit-test maps contiguous rows to preset values", () => {
         width: 300,
         height: 72,
         rowHeight: 24,
-        rowGap: 0,
         options: [
-            { value: "1024" },
-            { value: "1536" },
-            { value: "2048" },
+            { value: "small" },
+            { value: "medium" },
+            { value: "large" },
         ],
     };
 
-    assert.equal(getPresetStackClickValue(control, 20, 110), "1024");
-    assert.equal(getPresetStackClickValue(control, 20, 126), "1536");
-    assert.equal(getPresetStackClickValue(control, 20, 150), "2048");
-    assert.equal(getPresetStackClickValue(control, 20, 171), "2048");
+    assert.equal(getPresetStackClickValue(control, 20, 110), "small");
+    assert.equal(getPresetStackClickValue(control, 20, 126), "medium");
+    assert.equal(getPresetStackClickValue(control, 20, 150), "large");
+    assert.equal(getPresetStackClickValue(control, 20, 171), "large");
     assert.equal(getPresetStackClickValue(control, 20, 172), null);
     assert.equal(getPresetStackClickValue(control, 320, 110), null);
 });

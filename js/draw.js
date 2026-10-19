@@ -20,7 +20,7 @@ const CUSTOM_ROW_COUNT = 3;
 const DEFAULT_SIZE_LABELS = {
     width: "Width",
     height: "Height",
-    hint: "Output rounds down to nearest multiple of 8",
+    hint: "Output rounds down to nearest multiple of 16",
 };
 
 function drawSelectedPill(canvasContext, pillX, pillY, pillWidth, pillHeight, cornerRadius) {
@@ -54,18 +54,29 @@ function drawInputFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, 
     drawFrame(canvasContext, frameX, frameY, frameWidth, frameHeight, cornerRadius, INPUT_FILL, INPUT_BORDER);
 }
 
-export function drawLabel(canvasContext, text, labelY, widgetWidth, valueFn) {
+function drawLockStripes(canvasContext, frameX, frameY, frameWidth, frameHeight) {
+    canvasContext.save();
+    canvasContext.beginPath();
+    canvasContext.roundRect(frameX, frameY, frameWidth, frameHeight, 5);
+    canvasContext.clip();
+    canvasContext.globalAlpha = LOCK_STRIPE_ALPHA;
+    canvasContext.strokeStyle = LOCK_STRIPE_COLOR;
+    canvasContext.lineWidth = LOCK_STRIPE_WIDTH;
+    for (let stripeX = frameX - frameHeight; stripeX < frameX + frameWidth; stripeX += LOCK_STRIPE_SPACING) {
+        canvasContext.beginPath();
+        canvasContext.moveTo(stripeX, frameY + frameHeight);
+        canvasContext.lineTo(stripeX + frameHeight, frameY);
+        canvasContext.stroke();
+    }
+    canvasContext.restore();
+}
+
+export function drawLabel(canvasContext, text, labelY) {
     canvasContext.fillStyle = "#8d899f";
     canvasContext.font = "10px sans-serif";
     canvasContext.textAlign = "left";
     canvasContext.textBaseline = "middle";
     canvasContext.fillText(text, CONTROL_PADDING, labelY);
-    if (valueFn) {
-        canvasContext.fillStyle = "#e8e8f0";
-        canvasContext.font = "bold 11px monospace";
-        canvasContext.textAlign = "right";
-        canvasContext.fillText(valueFn(), widgetWidth - CONTROL_PADDING, labelY);
-    }
 }
 
 export function drawSegmented(
@@ -88,59 +99,25 @@ export function drawSegmented(
     const selectedIndex = options.findIndex((option) => option.value === selectedValue);
     const selectedPillIndex = animationPosition ?? selectedIndex;
 
-    if (locked) {
-        canvasContext.save();
-        canvasContext.globalAlpha = LOCK_DIM_ALPHA;
-        drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
-        if (selectedPillIndex >= 0) {
-            const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
-            drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
-        }
-        for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
-            const option = options[optionIndex];
-            const segmentX = controlX + optionIndex * segmentWidth;
-            const isSelected = selectedValue === option.value;
-            canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
-            canvasContext.font = "bold 12px sans-serif";
-            canvasContext.textAlign = "center";
-            canvasContext.textBaseline = "middle";
-            canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
-        }
-        canvasContext.restore();
-
-        canvasContext.save();
-        canvasContext.beginPath();
-        canvasContext.roundRect(controlX, controlY, controlWidth, controlHeight, 5);
-        canvasContext.clip();
-        canvasContext.globalAlpha = LOCK_STRIPE_ALPHA;
-        canvasContext.strokeStyle = LOCK_STRIPE_COLOR;
-        canvasContext.lineWidth = LOCK_STRIPE_WIDTH;
-        for (let stripeX = controlX - controlHeight; stripeX < controlX + controlWidth; stripeX += LOCK_STRIPE_SPACING) {
-            canvasContext.beginPath();
-            canvasContext.moveTo(stripeX, controlY + controlHeight);
-            canvasContext.lineTo(stripeX + controlHeight, controlY);
-            canvasContext.stroke();
-        }
-        canvasContext.restore();
-    } else {
-        drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
-
-        if (selectedPillIndex >= 0) {
-            const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
-            drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
-        }
-
-        for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
-            const option = options[optionIndex];
-            const segmentX = controlX + optionIndex * segmentWidth;
-            const isSelected = selectedValue === option.value;
-            canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
-            canvasContext.font = "bold 12px sans-serif";
-            canvasContext.textAlign = "center";
-            canvasContext.textBaseline = "middle";
-            canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
-        }
+    canvasContext.save();
+    if (locked) canvasContext.globalAlpha = LOCK_DIM_ALPHA;
+    drawChoiceFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
+    if (selectedPillIndex >= 0) {
+        const selectedPillX = controlX + selectedPillIndex * segmentWidth + 2;
+        drawSelectedPill(canvasContext, selectedPillX, controlY + 2, segmentWidth - 4, controlHeight - 4, 4);
     }
+    for (let optionIndex = 0; optionIndex < segmentCount; optionIndex++) {
+        const option = options[optionIndex];
+        const segmentX = controlX + optionIndex * segmentWidth;
+        canvasContext.fillStyle = selectedValue === option.value ? SELECTED_TEXT : OPTION_TEXT;
+        canvasContext.font = "bold 12px sans-serif";
+        canvasContext.textAlign = "center";
+        canvasContext.textBaseline = "middle";
+        canvasContext.fillText(option.label, segmentX + segmentWidth / 2, controlY + controlHeight / 2);
+    }
+    canvasContext.restore();
+
+    if (locked) drawLockStripes(canvasContext, controlX, controlY, controlWidth, controlHeight);
 
     controls[controlName] = {
         left: controlX,
@@ -165,7 +142,6 @@ export function drawPresetStack(
     const controlX = CONTROL_PADDING;
     const controlWidth = widgetWidth - CONTROL_PADDING * 2;
     const rowHeight = 26;
-    const rowGap = 0;
     const controlHeight = options.length * rowHeight;
 
     drawInputFrame(canvasContext, controlX, controlY, controlWidth, controlHeight, 5);
@@ -179,7 +155,7 @@ export function drawPresetStack(
 
     for (let optionIndex = 0; optionIndex < options.length; optionIndex++) {
         const option = options[optionIndex];
-        const rowY = controlY + optionIndex * (rowHeight + rowGap);
+        const rowY = controlY + optionIndex * rowHeight;
         const isSelected = selectedValue === option.value;
 
         canvasContext.fillStyle = isSelected ? SELECTED_TEXT : OPTION_TEXT;
@@ -195,7 +171,6 @@ export function drawPresetStack(
         width: controlWidth,
         height: controlHeight,
         rowHeight,
-        rowGap,
         options,
     };
 }

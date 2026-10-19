@@ -9,5 +9,5 @@
     "batchSize": "Batch Size",
     "width": "Width",
     "height": "Height",
-    "customRoundDownHint": "Output rounds down to nearest multiple of 8"
+    "customRoundDownHint": "Output rounds down to nearest multiple of 16"
 }

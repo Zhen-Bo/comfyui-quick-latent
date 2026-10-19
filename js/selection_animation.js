@@ -1,3 +1,6 @@
+export const SELECTION_ANIMATION_MS = 170;
+export const EASE_OUT_CUBIC_CSS = "cubic-bezier(0.33, 1, 0.68, 1)";
+
 function easeOutCubic(progress) {
     return 1 - Math.pow(1 - progress, 3);
 }
