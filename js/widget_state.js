@@ -1,7 +1,7 @@
 import {
+    LONG_EDGES,
     ORIENTATIONS,
     RATIOS,
-    SIZES,
     normalizeBatchSizeValue,
     normalizeChoice,
     normalizeCustomDimensionValue,
@@ -30,7 +30,7 @@ export function hideNativeWidgets(widgets) {
 
 export function readWidgetState(widgets) {
     return {
-        presetResolution: normalizeChoice(widgets.presetResolution?.value, Object.keys(SIZES)),
+        presetResolution: normalizeChoice(widgets.presetResolution?.value, Object.keys(LONG_EDGES)),
         aspectRatio: normalizeChoice(widgets.aspectRatio?.value, Object.keys(RATIOS)),
         orientation: normalizeChoice(widgets.orientation?.value, ORIENTATIONS),
         batchSize: normalizeBatchSizeValue(widgets.batchSize?.value),

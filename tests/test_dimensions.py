@@ -1,22 +1,20 @@
-"""Tests for the Quick Latent v3 preset and custom size rules."""
-
 import pytest
 
-from nodes import RATIOS, SIZES, SQUARE_SIZES, custom_dimensions, preset_dimensions
+from nodes import LONG_EDGES, RATIOS, SQUARE_LONG_EDGES, custom_dimensions, preset_dimensions
 
 
-@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("size", LONG_EDGES)
 @pytest.mark.parametrize("ratio", RATIOS)
 def test_preset_follows_size_rules(size, ratio):
     width, height = preset_dimensions(size, ratio, "portrait")
     short_part, long_part = RATIOS[ratio]
 
-    assert height == (SQUARE_SIZES if ratio == "square" else SIZES)[size]
+    assert height == (SQUARE_LONG_EDGES if ratio == "square" else LONG_EDGES)[size]
     assert width % 16 == 0
     assert abs(width / height - short_part / long_part) < 0.01
 
 
-@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("size", LONG_EDGES)
 @pytest.mark.parametrize("ratio", RATIOS)
 def test_landscape_swaps_portrait(size, ratio):
     width, height = preset_dimensions(size, ratio, "portrait")
@@ -25,7 +23,7 @@ def test_landscape_swaps_portrait(size, ratio):
 
 def test_preset_table():
     table = {
-        ratio: [preset_dimensions(size, ratio, "portrait") for size in SIZES]
+        ratio: [preset_dimensions(size, ratio, "portrait") for size in LONG_EDGES]
         for ratio in RATIOS
     }
     assert table == {

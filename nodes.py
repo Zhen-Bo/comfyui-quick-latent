@@ -1,39 +1,41 @@
-"""Quick Latent node - ComfyUI custom node for direct latent size selection."""
+from collections import namedtuple
 
 import torch
 import comfy.model_management
 
 
+Ratio = namedtuple("Ratio", ["short_part", "long_part"])
+
 ALIGNMENT = 16
-# Long edge of each preset size; the short edge follows the ratio.
-SIZES = {"small": 1536, "medium": 1920, "large": 2560}
-# Ratios as (short part, long part).
-RATIOS = {"square": (1, 1), "photo": (2, 3), "standard": (3, 4), "widescreen": (9, 16)}
-# Square has its own, smaller sizes.
-SQUARE_SIZES = {"small": 1024, "medium": 1536, "large": 2048}
+LONG_EDGES = {"small": 1536, "medium": 1920, "large": 2560}
+SQUARE_LONG_EDGES = {"small": 1024, "medium": 1536, "large": 2048}
+RATIOS = {
+    "square": Ratio(1, 1),
+    "photo": Ratio(2, 3),
+    "standard": Ratio(3, 4),
+    "widescreen": Ratio(9, 16),
+}
 ORIENTATIONS = ["portrait", "landscape", "custom"]
 
 CUSTOM_MIN = 512
 CUSTOM_MAX = 4096
 BATCH_SIZE_MIN = 1
 BATCH_SIZE_MAX = 64
+LATENT_DOWNSCALE_RATIO = 8
 
 
 def floor_to_alignment(value):
-    """Round an integer dimension down to the alignment multiple."""
     return value - value % ALIGNMENT
 
 
 def clamp_int(value, low, high, fallback):
-    """Clamp an integer to [low, high]; non-integers become the fallback."""
     integer_value = value if type(value) is int else fallback
     return max(low, min(high, integer_value))
 
 
 def preset_dimensions(size, ratio, orientation):
-    """Return (width, height) for a preset size, ratio, and orientation."""
     short_part, long_part = RATIOS[ratio]
-    long_edge = (SQUARE_SIZES if ratio == "square" else SIZES)[size]
+    long_edge = (SQUARE_LONG_EDGES if ratio == "square" else LONG_EDGES)[size]
     short_edge = floor_to_alignment(long_edge * short_part // long_part)
     if orientation == "landscape":
         return (long_edge, short_edge)
@@ -41,21 +43,18 @@ def preset_dimensions(size, ratio, orientation):
 
 
 def custom_dimensions(custom_width, custom_height):
-    """Return (width, height) for a user-entered custom size."""
     width = clamp_int(custom_width, CUSTOM_MIN, CUSTOM_MAX, 1024)
     height = clamp_int(custom_height, CUSTOM_MIN, CUSTOM_MAX, 1024)
     return (floor_to_alignment(width), floor_to_alignment(height))
 
 
 class QuickLatent:
-    """ComfyUI node for quick direct latent image size generation."""
-
     @classmethod
     def INPUT_TYPES(cls):
         custom_dimension = ("INT", {"default": 1024, "min": CUSTOM_MIN, "max": CUSTOM_MAX, "step": ALIGNMENT})
         return {
             "required": {
-                "preset_resolution": (list(SIZES),),
+                "preset_resolution": (list(LONG_EDGES),),
                 "aspect_ratio": (list(RATIOS),),
                 "orientation": (ORIENTATIONS,),
                 "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN, "max": BATCH_SIZE_MAX}),
@@ -78,7 +77,6 @@ class QuickLatent:
         custom_width=1024,
         custom_height=1024,
     ):
-        """Generate a zero-filled latent tensor at the selected output size."""
         batch_size = clamp_int(batch_size, BATCH_SIZE_MIN, BATCH_SIZE_MAX, BATCH_SIZE_MIN)
 
         if orientation == "custom":
@@ -87,12 +85,12 @@ class QuickLatent:
             width, height = preset_dimensions(preset_resolution, aspect_ratio, orientation)
 
         latent = torch.zeros(
-            [batch_size, 4, height // 8, width // 8],
+            [batch_size, 4, height // LATENT_DOWNSCALE_RATIO, width // LATENT_DOWNSCALE_RATIO],
             device=comfy.model_management.intermediate_device(),
         )
 
-        # The 8 lets ComfyUI rescale this generic latent for 16x models (FLUX.2, Qwen-Image 2.1).
-        return (width, height, {"samples": latent, "downscale_ratio_spacial": 8}, batch_size)
+        # ComfyUI uses the declared ratio to resize this latent for 16x models (FLUX.2, Qwen-Image 2.1).
+        return (width, height, {"samples": latent, "downscale_ratio_spacial": LATENT_DOWNSCALE_RATIO}, batch_size)
 
 
 NODE_CLASS_MAPPINGS = {"QuickLatent": QuickLatent}

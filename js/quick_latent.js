@@ -23,7 +23,7 @@ import {
 } from "./layout.js";
 import { openNumberInput } from "./size_input.js";
 import { createTranslator, loadLocaleMessages } from "./i18n.js";
-import { SelectionAnimationController } from "./selection_animation.js";
+import { SELECTION_ANIMATION_MS, SelectionAnimationController } from "./selection_animation.js";
 import {
     getQuickLatentWidgets,
     hideNativeWidgets,
@@ -31,8 +31,6 @@ import {
     writeWidgetState,
 } from "./widget_state.js";
 import { PANEL_HEIGHT, createVuePanel } from "./vue_panel.js";
-
-const SELECTION_ANIMATION_MS = 170;
 
 app.registerExtension({
     name: "QuickLatent",
@@ -94,10 +92,7 @@ function setupQuickLatentNode(node, translate) {
         surfaces: { canvas: "never", vueNode: "shown", panel: "never" },
     });
     vuePanelWidget.serialize = false;
-    // The panel only gets a size when Nodes 2.0 shows it, including after a live switch.
-    new ResizeObserver(() => {
-        if (vuePanel.element.offsetWidth > 0) syncOutputLabels();
-    }).observe(vuePanel.element);
+    onElementShown(vuePanel.element, syncOutputLabels);
 
     function getControlAreaWidth() {
         return node.size[0] - getOutputColumnReservedWidth();
@@ -136,8 +131,8 @@ function setupQuickLatentNode(node, translate) {
     node.onDrawForeground = function (ctx) {
         if (origDrawFG) origDrawFG.call(this, ctx);
         if (this.flags?.collapsed) return;
-        // Clear Vue slot text left over from a live switch back to the classic canvas.
-        if (this.outputs?.some((output) => output.localized_name)) syncOutputLabels();
+        const hasLeftoverVueSlotText = this.outputs?.some((output) => output.localized_name);
+        if (hasLeftoverVueSlotText) syncOutputLabels();
 
         const controlAreaWidth = getControlAreaWidth();
         drawOutputValues(ctx, outputState, this);
@@ -326,6 +321,12 @@ function setupQuickLatentNode(node, translate) {
 
 function isVueNodesMode() {
     return Boolean(globalThis.LiteGraph?.vueNodesMode);
+}
+
+function onElementShown(element, callback) {
+    new ResizeObserver(() => {
+        if (element.offsetWidth > 0) callback();
+    }).observe(element);
 }
 
 function getSegmentedValue(control, options, pointerX, pointerY) {

@@ -1,5 +1,3 @@
-"""Tests for the Quick Latent v3 node schema and generation behavior."""
-
 from nodes import QuickLatent
 
 

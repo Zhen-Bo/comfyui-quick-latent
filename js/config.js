@@ -1,11 +1,13 @@
 // Size rules mirror nodes.py; keep both in sync.
 export const ALIGNMENT = 16;
-// Long edge of each preset size; the short edge follows the ratio.
-export const SIZES = { small: 1536, medium: 1920, large: 2560 };
-// Ratios as [short part, long part].
-export const RATIOS = { square: [1, 1], photo: [2, 3], standard: [3, 4], widescreen: [9, 16] };
-// Square has its own, smaller sizes.
-export const SQUARE_SIZES = { small: 1024, medium: 1536, large: 2048 };
+export const LONG_EDGES = { small: 1536, medium: 1920, large: 2560 };
+export const SQUARE_LONG_EDGES = { small: 1024, medium: 1536, large: 2048 };
+export const RATIOS = {
+    square: { shortPart: 1, longPart: 1 },
+    photo: { shortPart: 2, longPart: 3 },
+    standard: { shortPart: 3, longPart: 4 },
+    widescreen: { shortPart: 9, longPart: 16 },
+};
 export const ORIENTATIONS = ["portrait", "landscape", "custom"];
 
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
@@ -37,8 +39,8 @@ export function normalizeChoice(value, choices) {
 }
 
 export function presetDimensions(size, ratio, orientation) {
-    const [shortPart, longPart] = RATIOS[ratio];
-    const longEdge = (ratio === "square" ? SQUARE_SIZES : SIZES)[size];
+    const { shortPart, longPart } = RATIOS[ratio];
+    const longEdge = (ratio === "square" ? SQUARE_LONG_EDGES : LONG_EDGES)[size];
     const shortEdge = floorToAlignment(Math.floor((longEdge * shortPart) / longPart));
     return orientation === "landscape"
         ? { width: longEdge, height: shortEdge }
@@ -52,9 +54,8 @@ export function customDimensions(customWidth, customHeight) {
     };
 }
 
-// Shown on the node: short:long in portrait, long:short in landscape.
 export function ratioLabel(ratio, orientation) {
-    const [shortPart, longPart] = RATIOS[ratio];
+    const { shortPart, longPart } = RATIOS[ratio];
     return orientation === "landscape" ? `${longPart}:${shortPart}` : `${shortPart}:${longPart}`;
 }
 
@@ -63,7 +64,7 @@ export function buildRatioOptions(orientation) {
 }
 
 export function buildPresetOptions(ratio, orientation) {
-    return Object.keys(SIZES).map((size) => {
+    return Object.keys(LONG_EDGES).map((size) => {
         const { width, height } = presetDimensions(size, ratio, orientation);
         return { label: `${width} x ${height}`, value: size };
     });

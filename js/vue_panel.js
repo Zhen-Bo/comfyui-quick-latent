@@ -10,14 +10,22 @@ import {
     normalizeBatchSizeValue,
     normalizeCustomDimensionValue,
 } from "./config.js";
+import { getOutputColumnReservedWidth } from "./layout.js";
+import { EASE_OUT_CUBIC_CSS, SELECTION_ANIMATION_MS } from "./selection_animation.js";
 
-// Same vertical rhythm as the classic canvas: 18px label, 26px control, 6px gap.
-export const PANEL_HEIGHT = 252;
-// Same slide as the classic canvas: 170ms easeOutCubic.
-const SELECTION_ANIMATION_MS = 170;
-const EASE_OUT_CUBIC = "cubic-bezier(0.33, 1, 0.68, 1)";
-// Room for the output values column, as on the classic canvas (53px reserve minus the 12px grid padding).
-const OUTPUT_COLUMN_WIDTH = 41;
+const LABEL_HEIGHT = 18;
+const CONTROL_HEIGHT = 26;
+const CONTROL_GAP = 6;
+const FRAME_PADDING = 2;
+const PRESET_ROW_COUNT = 3;
+const SIZE_SECTION_HEIGHT = PRESET_ROW_COUNT * CONTROL_HEIGHT + CONTROL_GAP;
+const SECTION_COUNT = 4;
+const SINGLE_ROW_SECTION_COUNT = 3;
+export const PANEL_HEIGHT = SECTION_COUNT * LABEL_HEIGHT
+    + SINGLE_ROW_SECTION_COUNT * (CONTROL_HEIGHT + CONTROL_GAP)
+    + SIZE_SECTION_HEIGHT;
+const VUE_WIDGET_GRID_PADDING = 12;
+const OUTPUT_COLUMN_WIDTH = getOutputColumnReservedWidth() - VUE_WIDGET_GRID_PADDING;
 
 // Nodes 2.0 puts output slots above the widgets; these rules float them to the top right like the classic canvas.
 const NODE_BODY = '[data-testid^="node-body-"]:has(.ql-panel)';
@@ -33,16 +41,16 @@ const STYLE = `
 .ql-panel { box-sizing: border-box; height: ${PANEL_HEIGHT}px; padding-right: ${OUTPUT_COLUMN_WIDTH}px;
     display: flex; flex-direction: column; font-family: sans-serif; color: #e8e8f0; user-select: none; }
 .ql-panel * { box-sizing: border-box; }
-.ql-label { height: 18px; line-height: 16px; font-size: 10px; color: #8d899f; white-space: nowrap; }
-.ql-gap { margin-bottom: 6px; }
-.ql-frame { position: relative; display: flex; padding: 2px; border: 1px solid #3f3b5a; border-radius: 5px; background: #252538; }
+.ql-label { height: ${LABEL_HEIGHT}px; line-height: 16px; font-size: 10px; color: #8d899f; white-space: nowrap; }
+.ql-gap { margin-bottom: ${CONTROL_GAP}px; }
+.ql-frame { position: relative; display: flex; padding: ${FRAME_PADDING}px; border: 1px solid #3f3b5a; border-radius: 5px; background: #252538; }
 .ql-pill { position: absolute; border-radius: 4px; background: #815fc8; box-shadow: inset 0 0 0 1.25px rgba(229, 219, 255, 0.58);
-    transition: left ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC}, top ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC}; }
-.ql-seg .ql-pill { top: 2px; bottom: 2px; }
-.ql-stack .ql-pill { left: 2px; right: 2px; }
+    transition: left ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC_CSS}, top ${SELECTION_ANIMATION_MS}ms ${EASE_OUT_CUBIC_CSS}; }
+.ql-seg .ql-pill { top: ${FRAME_PADDING}px; bottom: ${FRAME_PADDING}px; }
+.ql-stack .ql-pill { left: ${FRAME_PADDING}px; right: ${FRAME_PADDING}px; }
 .ql-frame.ql-input-frame { border-color: #4d496a; }
-.ql-seg { height: 26px; }
-.ql-stack { height: 78px; flex-direction: column; }
+.ql-seg { height: ${CONTROL_HEIGHT}px; }
+.ql-stack { height: ${PRESET_ROW_COUNT * CONTROL_HEIGHT}px; flex-direction: column; }
 .ql-choice { position: relative; flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #918da3;
     font: bold 12px sans-serif; cursor: pointer; }
 .ql-stack .ql-choice { font-family: monospace; }
@@ -53,8 +61,8 @@ const STYLE = `
 .ql-locked .ql-choice { cursor: not-allowed; }
 .ql-locked::after { content: ""; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
     background: repeating-linear-gradient(135deg, transparent 0 7px, rgba(110, 110, 133, 0.22) 7px 8px); }
-.ql-size { height: 84px; }
-.ql-custom { display: grid; grid-template-columns: 1fr 20px 1fr; grid-template-rows: 26px 26px 26px; column-gap: 8px; }
+.ql-size { height: ${SIZE_SECTION_HEIGHT}px; }
+.ql-custom { display: grid; grid-template-columns: 1fr 20px 1fr; grid-template-rows: repeat(3, ${CONTROL_HEIGHT}px); column-gap: 8px; }
 .ql-custom .ql-label { align-self: end; height: auto; line-height: 14px; padding-left: 1px; }
 .ql-custom .ql-x { align-self: center; text-align: center; color: #6e6e85; font: bold 14px sans-serif; }
 .ql-custom .ql-hint { grid-column: 1 / -1; align-self: center; padding-left: 1px; font-size: 10px; color: #7f7a90; }
@@ -63,7 +71,8 @@ const STYLE = `
     -moz-appearance: textfield; appearance: textfield; }
 .ql-number::-webkit-inner-spin-button, .ql-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .ql-number:focus { outline: none; border-color: #9c7ee0; }
-.ql-batch { height: 26px; padding: 0; display: grid; grid-template-columns: 26px 1fr 26px; }
+.ql-batch { height: ${CONTROL_HEIGHT}px; padding: 0; display: grid;
+    grid-template-columns: ${CONTROL_HEIGHT}px 1fr ${CONTROL_HEIGHT}px; }
 .ql-batch .ql-step { padding: 0; border: 0; background: transparent; color: #918da3; font: bold 14px sans-serif; cursor: pointer; }
 .ql-batch .ql-step:hover { color: #e8e8f0; }
 .ql-batch .ql-number { height: 24px; border-color: transparent; background: transparent; }
@@ -90,20 +99,23 @@ function section(labelText, control, gap = true) {
     return [el("div", "ql-label", labelText), control];
 }
 
-// Places the pill on option `index` of `count`, inside the 2px frame padding.
 function placePill(pill, vertical, index, count) {
-    const offset = `calc(2px + (100% - 4px) * ${index} / ${count})`;
-    const length = `calc((100% - 4px) / ${count})`;
+    const innerLength = `(100% - ${2 * FRAME_PADDING}px)`;
+    const offset = `calc(${FRAME_PADDING}px + ${innerLength} * ${index} / ${count})`;
+    const length = `calc(${innerLength} / ${count})`;
     if (vertical) Object.assign(pill.style, { top: offset, height: length });
     else Object.assign(pill.style, { left: offset, width: length });
 }
 
-// The pill starts at `fromIndex` and slides to the selected option once it is in the DOM.
-function selectionPill(vertical, fromIndex, toIndex, count) {
+function afterFirstPaint(callback) {
+    requestAnimationFrame(() => requestAnimationFrame(callback));
+}
+
+function slidingSelectionPill(vertical, fromIndex, toIndex, count) {
     const pill = el("div", "ql-pill");
     placePill(pill, vertical, fromIndex ?? toIndex, count);
     if (fromIndex !== null && fromIndex !== toIndex) {
-        requestAnimationFrame(() => requestAnimationFrame(() => placePill(pill, vertical, toIndex, count)));
+        afterFirstPaint(() => placePill(pill, vertical, toIndex, count));
     }
     return pill;
 }
@@ -112,7 +124,7 @@ function choiceButtons(frameClass, options, selectedValue, onSelect, locked = fa
     const frame = el("div", `ql-frame ${frameClass}`);
     const selectedIndex = options.findIndex((option) => option.value === selectedValue);
     if (selectedIndex >= 0) {
-        frame.append(selectionPill(frameClass.includes("ql-stack"), fromIndex, selectedIndex, options.length));
+        frame.append(slidingSelectionPill(frameClass.includes("ql-stack"), fromIndex, selectedIndex, options.length));
     }
     for (const option of options) {
         const button = el("button", option.value === selectedValue ? "ql-choice ql-on" : "ql-choice", option.label);
@@ -147,12 +159,11 @@ export function createVuePanel({ translate, onChange }) {
     ensureStyle();
     const element = el("div", "ql-panel");
     const orientationOptions = ["portrait", "landscape", "custom"].map((value) => ({ label: translate(value), value }));
-    // Last selected index per control, so the pill can slide from it on the next render.
-    const lastIndex = {};
+    const previousSelectedIndex = {};
 
     function trackedChoice(key, frameClass, options, selectedValue, onSelect, locked = false) {
-        const fromIndex = lastIndex[key] ?? null;
-        lastIndex[key] = options.findIndex((option) => option.value === selectedValue);
+        const fromIndex = previousSelectedIndex[key] ?? null;
+        previousSelectedIndex[key] = options.findIndex((option) => option.value === selectedValue);
         return choiceButtons(frameClass, options, selectedValue, onSelect, locked, fromIndex);
     }
 
@@ -170,7 +181,7 @@ export function createVuePanel({ translate, onChange }) {
         }
 
         // The preset stack is gone in custom mode; do not slide from a stale row when it comes back.
-        delete lastIndex.resolution;
+        delete previousSelectedIndex.resolution;
         const custom = el("div", "ql-custom");
         custom.append(
             el("div", "ql-label", translate("width")),

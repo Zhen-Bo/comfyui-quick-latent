@@ -1,9 +1,3 @@
-"""ComfyUI-QuickLatent - Quick direct-size latent image generation node.
-
-Exports NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS, and WEB_DIRECTORY
-for ComfyUI custom node registration.
-"""
-
 try:
     from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 except ImportError:
