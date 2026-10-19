@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import {
-    MIN_WIDTH,
     CUSTOM_MIN, CUSTOM_MAX,
+    BATCH_SIZE_MIN, BATCH_SIZE_MAX,
     presetDimensions, customDimensions,
     buildRatioOptions, buildPresetOptions,
     normalizeBatchSizeValue,
@@ -107,7 +107,7 @@ function setupQuickLatentNode(node, translate) {
         drawOutputValues(ctx, outputState, this);
 
         let y = getControlStartY();
-        drawLabel(ctx, translate("orientation"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("orientation"), y + 8);
         y += 18;
         drawSegmented(
             ctx,
@@ -121,7 +121,7 @@ function setupQuickLatentNode(node, translate) {
         );
         y += 32;
 
-        drawLabel(ctx, translate("aspectRatio"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("aspectRatio"), y + 8);
         y += 18;
         drawSegmented(
             ctx,
@@ -140,7 +140,6 @@ function setupQuickLatentNode(node, translate) {
             ctx,
             widgetState.orientation === "custom" ? translate("customSize") : translate("presetResolution"),
             y + 8,
-            controlAreaWidth,
         );
         y += 18;
         if (widgetState.orientation === "custom") {
@@ -159,7 +158,7 @@ function setupQuickLatentNode(node, translate) {
         }
         y += 84;
 
-        drawLabel(ctx, translate("batchSize"), y + 8, controlAreaWidth);
+        drawLabel(ctx, translate("batchSize"), y + 8);
         y += 18;
         drawBatch(ctx, controls, "batch", widgetState.batchSize, y, controlAreaWidth);
         y += 32;
@@ -240,8 +239,8 @@ function setupQuickLatentNode(node, translate) {
                     node: this,
                     box: controls.batch.valueBox,
                     value: widgetState.batchSize,
-                    min: 1,
-                    max: 64,
+                    min: BATCH_SIZE_MIN,
+                    max: BATCH_SIZE_MAX,
                     onCommit: (value) => {
                         widgetState.batchSize = normalizeBatchSizeValue(value);
                         syncHiddenWidgetsAndRecalculate();
@@ -271,7 +270,7 @@ function setupQuickLatentNode(node, translate) {
 
     node.getInputs = function () { return []; };
 
-    node.size[0] = Math.max(node.size[0], MIN_WIDTH);
+    node.size[0] = Math.max(node.size[0], getQuickLatentMinWidth());
     node.size[1] = Math.max(node.size[1], contentMinHeight);
 
     node.computeSize = function () {
@@ -280,7 +279,7 @@ function setupQuickLatentNode(node, translate) {
 
     const origResize = node.onResize;
     node.onResize = function (size) {
-        size[0] = Math.max(size[0], MIN_WIDTH);
+        size[0] = Math.max(size[0], getQuickLatentMinWidth());
         size[1] = Math.max(size[1], contentMinHeight);
         if (origResize) origResize.call(this, size);
     };

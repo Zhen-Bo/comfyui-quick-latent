@@ -9,7 +9,6 @@ export const SQUARE_SIZES = { small: 1024, medium: 1536, large: 2048 };
 export const ORIENTATIONS = ["portrait", "landscape", "custom"];
 
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
-export const MIN_WIDTH = 370;
 export const CUSTOM_MIN = 512;
 export const CUSTOM_MAX = 4096;
 export const BATCH_SIZE_MIN = 1;

@@ -42,10 +42,6 @@ export function getOutputValueLabels(outputState) {
     ];
 }
 
-export function getQuickLatentOutputCount() {
-    return QUICK_LATENT_OUTPUT_COUNT;
-}
-
 export function getOutputColumnReservedWidth() {
     return OUTPUT_COLUMN_RESERVED_WIDTH;
 }
@@ -91,9 +87,8 @@ export function getPresetStackClickValue(control, x, y) {
     if (x < control.left || x > control.left + control.width) return null;
     if (y < control.top || y >= control.top + control.height) return null;
 
-    const rowStride = control.rowHeight + control.rowGap;
-    const index = Math.floor((y - control.top) / rowStride);
-    const rowOffset = (y - control.top) - index * rowStride;
+    const index = Math.floor((y - control.top) / control.rowHeight);
+    const rowOffset = (y - control.top) - index * control.rowHeight;
     if (index < 0 || index >= control.options.length) return null;
     if (rowOffset >= control.rowHeight) return null;
     return control.options[index].value;

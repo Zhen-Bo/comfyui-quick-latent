@@ -1,7 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 
-import { MIN_WIDTH } from "../js/config.js";
 import {
     getBatchClickAction,
     getControlStartY,
@@ -55,7 +54,6 @@ test("node minimum height fits the V2 controls", () => {
 
 test("node minimum width does not grow after horizontal resize", () => {
     assert.equal(getQuickLatentMinWidth(), 370);
-    assert.equal(MIN_WIDTH, getQuickLatentMinWidth());
 });
 
 test("latent output labels use compact V2 text", () => {
@@ -100,7 +98,6 @@ test("preset-stack hit-test maps contiguous rows to preset values", () => {
         width: 300,
         height: 72,
         rowHeight: 24,
-        rowGap: 0,
         options: [
             { value: "small" },
             { value: "medium" },
