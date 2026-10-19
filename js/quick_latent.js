@@ -264,7 +264,8 @@ function setupQuickLatentNode(node, translate) {
             ratioOptions = buildRatioOptions(widgetState.orientation);
             if (node.inputs) node.inputs.length = 0;
             normalizeOutputSlots(node.outputs);
-            syncHiddenWidgetsAndRecalculate();
+            // Do not write back: unknown saved values (old workflows) must stay and fail validation.
+            updateOutputState();
         }, 100);
     };
 
