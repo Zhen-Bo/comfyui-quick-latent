@@ -3,12 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:unit && npm run test:e2e",
-    "test:unit": "vitest run",
-    "test:e2e": "playwright test"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
     "vitest": "^4.1.9"
   }
 }

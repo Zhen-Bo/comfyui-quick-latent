@@ -3,5 +3,3 @@ __pycache__/
 .pytest_cache/
 .worktree/
 node_modules/
-test-results/
-playwright-report/
