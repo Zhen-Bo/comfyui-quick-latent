@@ -21,9 +21,9 @@ function graphBoxToClientPosition(node, box) {
 
 /**
  * Opens an integer editor over `box` (node-local graph units).
- * Enter, blur and wheel commit the value clamped to [min, max]; Esc cancels.
+ * Enter, blur and wheel commit the value raised to at least min; Esc cancels.
  */
-export function openNumberInput({ node, box, value, min, max, onCommit }) {
+export function openNumberInput({ node, box, value, min, onCommit }) {
     if (node._openNumberInput) return;
 
     const { left: inputLeft, top: inputTop, graphToCssScale } = graphBoxToClientPosition(node, box);
@@ -75,7 +75,7 @@ export function openNumberInput({ node, box, value, min, max, onCommit }) {
         const inputText = input.value.trim();
         const isWholeNumber = /^\d+$/.test(inputText);
         const typedOrPriorValue = isWholeNumber ? Number(inputText) : value;
-        const clampedValue = Math.max(min, Math.min(max, typedOrPriorValue));
+        const clampedValue = Math.max(min, typedOrPriorValue);
         cleanup();
         onCommit(clampedValue);
     };

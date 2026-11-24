@@ -1,8 +1,6 @@
 import {
-    CUSTOM_MAX,
     CUSTOM_MIN,
     ALIGNMENT,
-    BATCH_SIZE_MAX,
     BATCH_SIZE_MIN,
     PORT_COLORS,
     buildPresetOptions,
@@ -140,9 +138,9 @@ function choiceButtons(frameClass, options, selectedValue, onSelect, locked = fa
 }
 
 // Commit on Enter or blur; keep keystrokes away from ComfyUI shortcuts.
-function numberInput(value, min, max, step, onCommit) {
+function numberInput(value, min, step, onCommit) {
     const input = el("input", "ql-number");
-    Object.assign(input, { type: "number", min, max, step, value: String(value) });
+    Object.assign(input, { type: "number", min, step, value: String(value) });
     input.addEventListener("keydown", (event) => {
         event.stopPropagation();
         if (event.key === "Enter") input.blur();
@@ -187,10 +185,10 @@ export function createVuePanel({ translate, onChange }) {
             el("div", "ql-label", translate("width")),
             el("span"),
             el("div", "ql-label", translate("height")),
-            numberInput(state.customWidth, CUSTOM_MIN, CUSTOM_MAX, ALIGNMENT,
+            numberInput(state.customWidth, CUSTOM_MIN, ALIGNMENT,
                 (value) => onChange({ customWidth: normalizeCustomDimensionValue(value) })),
             el("span", "ql-x", "x"),
-            numberInput(state.customHeight, CUSTOM_MIN, CUSTOM_MAX, ALIGNMENT,
+            numberInput(state.customHeight, CUSTOM_MIN, ALIGNMENT,
                 (value) => onChange({ customHeight: normalizeCustomDimensionValue(value) })),
             el("div", "ql-hint", translate("customRoundDownHint")),
         );
@@ -207,7 +205,7 @@ export function createVuePanel({ translate, onChange }) {
         increment.addEventListener("click", () => onChange({ batchSize: normalizeBatchSizeValue(state.batchSize + 1) }));
         batch.append(
             decrement,
-            numberInput(state.batchSize, BATCH_SIZE_MIN, BATCH_SIZE_MAX, 1,
+            numberInput(state.batchSize, BATCH_SIZE_MIN, 1,
                 (value) => onChange({ batchSize: normalizeBatchSizeValue(value) })),
             increment,
         );

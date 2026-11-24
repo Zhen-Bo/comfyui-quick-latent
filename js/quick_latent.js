@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import {
-    CUSTOM_MIN, CUSTOM_MAX,
-    BATCH_SIZE_MIN, BATCH_SIZE_MAX,
+    CUSTOM_MIN,
+    BATCH_SIZE_MIN,
     presetDimensions, customDimensions,
     buildRatioOptions, buildPresetOptions,
     normalizeBatchSizeValue,
@@ -235,7 +235,6 @@ function setupQuickLatentNode(node, translate) {
                     box: isWidth ? controls.sizeW : controls.sizeH,
                     value: isWidth ? widgetState.customWidth : widgetState.customHeight,
                     min: CUSTOM_MIN,
-                    max: CUSTOM_MAX,
                     onCommit: (value) => {
                         if (isWidth) widgetState.customWidth = value;
                         else widgetState.customHeight = value;
@@ -271,7 +270,6 @@ function setupQuickLatentNode(node, translate) {
                     box: controls.batch.valueBox,
                     value: widgetState.batchSize,
                     min: BATCH_SIZE_MIN,
-                    max: BATCH_SIZE_MAX,
                     onCommit: (value) => {
                         widgetState.batchSize = normalizeBatchSizeValue(value);
                         syncHiddenWidgetsAndRecalculate();

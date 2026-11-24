@@ -12,26 +12,24 @@ export const ORIENTATIONS = ["portrait", "landscape", "custom"];
 
 export const PORT_COLORS = ["#4fc3f7", "#ffb74d", "#ff69b4", "#9a7bdc"];
 export const CUSTOM_MIN = 512;
-export const CUSTOM_MAX = 4096;
 export const BATCH_SIZE_MIN = 1;
-export const BATCH_SIZE_MAX = 64;
 
 export function floorToAlignment(value) {
     return value - (value % ALIGNMENT);
 }
 
-function clampInt(value, low, high, fallback) {
+function atLeastInt(value, low, fallback) {
     const numericValue = Number(value);
     const integerValue = Number.isInteger(numericValue) ? numericValue : fallback;
-    return Math.max(low, Math.min(high, integerValue));
+    return Math.max(low, integerValue);
 }
 
 export function normalizeCustomDimensionValue(value) {
-    return clampInt(value, CUSTOM_MIN, CUSTOM_MAX, 1024);
+    return atLeastInt(value, CUSTOM_MIN, 1024);
 }
 
 export function normalizeBatchSizeValue(value) {
-    return clampInt(value, BATCH_SIZE_MIN, BATCH_SIZE_MAX, BATCH_SIZE_MIN);
+    return atLeastInt(value, BATCH_SIZE_MIN, BATCH_SIZE_MIN);
 }
 
 export function normalizeChoice(value, choices) {
