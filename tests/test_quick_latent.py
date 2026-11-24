@@ -1,3 +1,5 @@
+import pytest
+
 from nodes import QuickLatent
 
 
@@ -16,13 +18,13 @@ def generate(**overrides):
 
 def test_input_types():
     inputs = QuickLatent.INPUT_TYPES()["required"]
-    custom_dimension = ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 16})
+    custom_dimension = ("INT", {"default": 1024, "min": 512, "step": 16})
 
     assert inputs == {
         "preset_resolution": (["small", "medium", "large"],),
         "aspect_ratio": (["square", "photo", "standard", "widescreen"],),
         "orientation": (["portrait", "landscape", "custom"],),
-        "batch_size": ("INT", {"default": 1, "min": 1, "max": 64}),
+        "batch_size": ("INT", {"default": 1, "min": 1}),
         "custom_width": custom_dimension,
         "custom_height": custom_dimension,
     }
@@ -48,7 +50,7 @@ def test_generate_custom_ignores_preset_and_ratio():
     assert first[0:2] == second[0:2] == (2000, 992)
 
 
-def test_generate_clamps_batch_size():
-    assert generate(batch_size=0)[3] == 1
-    assert generate(batch_size=99)[3] == 64
-    assert generate(batch_size=17.5)[3] == 1
+@pytest.mark.parametrize("batch_size", [0, 17.5])
+def test_generate_rejects_invalid_batch_size(batch_size):
+    with pytest.raises(ValueError, match="batch_size"):
+        generate(batch_size=batch_size)

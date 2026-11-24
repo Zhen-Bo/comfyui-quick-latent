@@ -34,15 +34,15 @@ test("ratio labels follow the orientation", () => {
     assert.deepEqual(buildRatioOptions("landscape").map((option) => option.label), ["1:1", "3:2", "4:3", "16:9"]);
 });
 
-test("custom size clamps to [512, 4096] and floors to 16", () => {
+test("custom size has a 512 minimum, no maximum, and floors to 16", () => {
     assert.deepEqual(customDimensions(1000, 1000), { width: 992, height: 992 });
-    assert.deepEqual(customDimensions(100, 9000), { width: 512, height: 4096 });
+    assert.deepEqual(customDimensions(100, 65540), { width: 512, height: 65536 });
     assert.equal(normalizeCustomDimensionValue("not-a-number"), 1024);
 });
 
-test("batch size clamps to [1, 64] and rejects floats", () => {
+test("batch size has a minimum of 1 and rejects floats", () => {
     assert.equal(normalizeBatchSizeValue(0), 1);
-    assert.equal(normalizeBatchSizeValue(99), 64);
+    assert.equal(normalizeBatchSizeValue(99), 99);
     assert.equal(normalizeBatchSizeValue(17.5), 1);
 });
 

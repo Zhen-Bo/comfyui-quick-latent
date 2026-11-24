@@ -39,9 +39,15 @@ def test_preset_table():
     [
         ((1000, 1000), (992, 992)),
         ((1024, 1040), (1024, 1040)),
-        ((100, 9000), (512, 4096)),
-        ((513.5, "2048"), (1024, 1024)),
+        ((512, 65536), (512, 65536)),
+        ((4100, 5480), (4096, 5472)),
     ],
 )
-def test_custom_size_clamps_and_floors_to_16(raw, expected):
+def test_custom_size_floors_to_16(raw, expected):
     assert custom_dimensions(*raw) == expected
+
+
+@pytest.mark.parametrize("raw", [(511, 1024), (513.5, 1024), (1024, "2048"), (True, 1024)])
+def test_custom_size_rejects_invalid_values(raw):
+    with pytest.raises(ValueError):
+        custom_dimensions(*raw)

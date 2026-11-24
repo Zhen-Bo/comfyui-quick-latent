@@ -7,7 +7,7 @@ Quick Latent treats the selected size as the direct output size. There is no sca
 1. Each preset size fixes the long edge: `small` = `1536`, `medium` = `1920`, `large` = `2560`. `square` uses its own sizes: `1024`, `1536`, `2048`.
 2. The short edge is `long edge x ratio`, rounded down to a multiple of `16`.
 3. `landscape` swaps width and height. `portrait` keeps the long edge as the height.
-4. `custom` ignores the preset size and ratio. Each custom axis is clamped to `512..4096`, then rounded down to a multiple of `16`.
+4. `custom` ignores the preset size and ratio. Each custom axis must be an integer of at least `512`, then it is rounded down to a multiple of `16`.
 
 Every output dimension is a multiple of `16`, which suits SDXL, FLUX, FLUX.2, Qwen-Image, and other models whose latent or patch grid needs 16 px steps.
 
@@ -29,7 +29,7 @@ Portrait sizes (width x height). Landscape swaps the two numbers.
 | `OUTPUT_WIDTH` | Actual 16-aligned latent image width. |
 | `OUTPUT_HEIGHT` | Actual 16-aligned latent image height. |
 | `LATENT` | Zero-filled latent tensor shaped as `[batch, 4, height // 8, width // 8]`, with `downscale_ratio_spacial: 8` so ComfyUI rescales it for 16x models such as FLUX.2 and Qwen-Image 2.1. |
-| `BATCH_SIZE` | Selected batch size after clamping to `1..64`. |
+| `BATCH_SIZE` | Selected batch size, at least `1`. |
 
 ## V3.0 Breaking Change
 

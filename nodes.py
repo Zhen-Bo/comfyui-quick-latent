@@ -18,9 +18,7 @@ RATIOS = {
 ORIENTATIONS = ["portrait", "landscape", "custom"]
 
 CUSTOM_MIN = 512
-CUSTOM_MAX = 4096
 BATCH_SIZE_MIN = 1
-BATCH_SIZE_MAX = 64
 LATENT_DOWNSCALE_RATIO = 8
 
 
@@ -28,9 +26,10 @@ def floor_to_alignment(value):
     return value - value % ALIGNMENT
 
 
-def clamp_int(value, low, high, fallback):
-    integer_value = value if type(value) is int else fallback
-    return max(low, min(high, integer_value))
+def require_int(name, value, low):
+    if type(value) is not int or value < low:
+        raise ValueError(f"{name} must be an integer of at least {low}, got {value!r}")
+    return value
 
 
 def preset_dimensions(size, ratio, orientation):
@@ -43,21 +42,21 @@ def preset_dimensions(size, ratio, orientation):
 
 
 def custom_dimensions(custom_width, custom_height):
-    width = clamp_int(custom_width, CUSTOM_MIN, CUSTOM_MAX, 1024)
-    height = clamp_int(custom_height, CUSTOM_MIN, CUSTOM_MAX, 1024)
+    width = require_int("custom_width", custom_width, CUSTOM_MIN)
+    height = require_int("custom_height", custom_height, CUSTOM_MIN)
     return (floor_to_alignment(width), floor_to_alignment(height))
 
 
 class QuickLatent:
     @classmethod
     def INPUT_TYPES(cls):
-        custom_dimension = ("INT", {"default": 1024, "min": CUSTOM_MIN, "max": CUSTOM_MAX, "step": ALIGNMENT})
+        custom_dimension = ("INT", {"default": 1024, "min": CUSTOM_MIN, "step": ALIGNMENT})
         return {
             "required": {
                 "preset_resolution": (list(LONG_EDGES),),
                 "aspect_ratio": (list(RATIOS),),
                 "orientation": (ORIENTATIONS,),
-                "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN, "max": BATCH_SIZE_MAX}),
+                "batch_size": ("INT", {"default": 1, "min": BATCH_SIZE_MIN}),
                 "custom_width": custom_dimension,
                 "custom_height": custom_dimension,
             }
@@ -77,7 +76,7 @@ class QuickLatent:
         custom_width=1024,
         custom_height=1024,
     ):
-        batch_size = clamp_int(batch_size, BATCH_SIZE_MIN, BATCH_SIZE_MAX, BATCH_SIZE_MIN)
+        batch_size = require_int("batch_size", batch_size, BATCH_SIZE_MIN)
 
         if orientation == "custom":
             width, height = custom_dimensions(custom_width, custom_height)
