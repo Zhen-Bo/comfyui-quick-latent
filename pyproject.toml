@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-quick-latent"
-version = "3.0.0"
+version = "3.0.1"
 description = "A streamlined latent size node for ComfyUI with direct resolution presets and batch output."
 license = { file = "LICENSE" }
 
